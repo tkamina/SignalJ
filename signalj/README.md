@@ -8,6 +8,6 @@ To build the SignalJ compiler, you need to follow the following instructions.
 1. Download and extract ExtendJ compiler.
 2. Copy the directory named "signalj" to the top-level dierctory of the extracted ExtendJ directory.
 3. Change directory to the copied signalj directory.
-4. Run "ant signalj jar". Then, the jar file "signalj.jar" will be created in the directory.
+4. Run "ant build jar". Then, the jar file "signalj.jar" will be created in the directory.
 
 To run the compiler, you just need to run the following command. $ java -jar signalj.jar [source files]
