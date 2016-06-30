@@ -1,0 +1,688 @@
+/* Copyright (c) 2016, Tetsuo Kamina
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from this
+ * software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+aspect SignalValue {
+  syn lazy boolean Modifiers.isSignal() = numModifier("signal") != 0;
+
+  rewrite VarDeclStmt {
+    when (getModifiers().isSignal())
+    to VarDeclStmt {
+      SignalJRewriteUtil util = new SignalJRewriteUtil();
+      Modifiers ms = util.toRewrittenModifiers(getModifiers());
+
+      Access reType = util.toRewrittenType(getTypeAccess());
+
+      List<VariableDeclarator> vdecls = getDeclarators();
+      List<VariableDeclarator> reDecls = new List<VariableDeclarator>();
+      for (int i=0; i<vdecls.getNumChildNoTransform(); i++) {
+        VariableDeclarator vdecl = vdecls.getChildNoTransform(i);
+        if (vdecl.getInit() != null) {
+          Expr lambdaExpr = vdecl.getInit();
+          List lambdaArgs = new List();
+          Expr lambdaLast = ((Expr)vdecl.getInit().fullCopy()).rewriteSignalTypes(RewriteMode.LAST);
+          if (vdecl.getInit().containsSignal()) {
+            lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(vdecl.getInit())));
+	    lambdaArgs.add(lambdaExpr);
+            lambdaArgs.add(new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(lambdaLast))));
+            vdecl = new VariableDeclarator(vdecl.getID(), vdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "CompositeSignal"), util.args), lambdaArgs, new Opt())));
+          } else {
+	    lambdaArgs.add(lambdaExpr);
+            vdecl = new VariableDeclarator(vdecl.getID(), vdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "Signal"), util.args), lambdaArgs, new Opt())));
+          }
+        }
+        reDecls.addChild(vdecl);
+      }
+
+      return new VarDeclStmt(ms, reType, reDecls);
+    }
+  }
+
+  rewrite FieldDecl {
+    when(getModifiers().isSignal())
+    to FieldDecl {
+      SignalJRewriteUtil util = new SignalJRewriteUtil();
+      Modifiers ms = util.toRewrittenModifiers(getModifiers());
+
+      Access reType = util.toRewrittenType(getTypeAccess());
+
+      List<FieldDeclarator> fdecls = getDeclarators();
+      List<FieldDeclarator> reDecls = new List<FieldDeclarator>();
+      for (int i=0; i<fdecls.getNumChildNoTransform(); i++) {
+        FieldDeclarator fdecl = fdecls.getChildNoTransform(i);
+        if (fdecl.getInit() != null) {
+          Expr lambdaExpr = fdecl.getInit();
+          List lambdaArgs = new List();
+          Expr last = (Expr)fdecl.getInit().fullCopy();
+          last.setParent(fdecl.getInit().getParent());
+          Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.GET);
+          lambdaLast = lambdaLast.rewriteSignalTypes(RewriteMode.LAST);
+	  if (fdecl.getInit().containsSignal()) {
+            lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(fdecl.getInit())));
+            lambdaArgs.add(lambdaExpr);
+            lambdaArgs.add(new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(lambdaLast))));
+            fdecl = new FieldDeclarator(fdecl.getID(), fdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "CompositeSignal"), util.args), lambdaArgs, new Opt())));
+          } else {
+            lambdaArgs.add(lambdaExpr);
+            fdecl = new FieldDeclarator(fdecl.getID(), fdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "Signal"), util.args), lambdaArgs, new Opt())));
+          }
+        }
+        reDecls.addChild(fdecl);
+      }
+
+      return new FieldDecl(ms, reType, reDecls);
+    }
+  }
+
+  enum RewriteMode { GET, LAST }
+
+  public class SignalJRewriteUtil {
+
+    public List<Access> args = new List<Access>();
+
+    public Modifiers toRewrittenModifiers(Modifiers m) {
+      Modifiers ms = new Modifiers();
+      for (int i=0; i<m.getNumModifier(); i++) {
+        String s = m.getModifier(i).getID();
+        if (!s.equals("signal")) {
+          ms.addChild(new Modifier(s));
+        }
+      }
+      return ms;
+    }
+
+    public Access toRewrittenType(Access type) {
+      Access reType = new ParTypeAccess(new TypeAccess("signalj", "Signal"), args);
+      if (type instanceof PrimitiveTypeAccess) {
+        PrimitiveTypeAccess p = (PrimitiveTypeAccess)type;
+        if (p.getID().equals("boolean")) {
+          args.add(new TypeAccess("java.lang", "Boolean"));
+        } else if (p.getID().equals("byte")) {
+          args.add(new TypeAccess("java.lang", "Byte"));
+        } else if (p.getID().equals("short")) {
+          args.add(new TypeAccess("java.lang", "Short"));
+        } else if (p.getID().equals("int")) {
+          args.add(new TypeAccess("java.lang", "Integer"));
+        } else if (p.getID().equals("long")) {
+	  args.add(new TypeAccess("java.lang", "Long"));
+        } else if (p.getID().equals("char")) {
+	  args.add(new TypeAccess("java.lang", "Character"));
+        } else if (p.getID().equals("float")) {
+	  args.add(new TypeAccess("java.lang", "Float"));
+        } else if (p.getID().equals("double")) {
+	  args.add(new TypeAccess("java.lang", "Double"));
+        } else {
+
+        }
+      } else {
+        
+      }
+      return reType;
+    }
+  }
+
+  public boolean Expr.isSignalType() {
+    if (!(type() instanceof ClassDecl)) return false;
+
+    return type().packageName().equals("signalj") &&
+           (((ClassDecl)type()).getID().equals("Signal") ||
+            ((ClassDecl)type()).getID().equals("CompositeSignal"));
+  }
+
+  public void CompilationUnit.rewriteSignalTypes() {
+    List<TypeDecl> decls = getTypeDecls();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      decls.getChildNoTransform(i).rewriteSignalTypes();
+    }
+  }
+
+  public void TypeDecl.rewriteSignalTypes() { }
+
+  public void ClassDecl.rewriteSignalTypes() {
+    List<BodyDecl> decls = getBodyDecls();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      decls.getChildNoTransform(i).rewriteSignalTypes();
+    }
+  }
+
+  public void BodyDecl.rewriteSignalTypes() { }
+
+  public void InstanceInitializer.rewriteSignalTypes() {
+    getBlock().rewriteSignalTypes();
+  }
+
+  public void StaticInitializer.rewriteSignalTypes() {
+    getBlock().rewriteSignalTypes();
+  }
+
+  public void ConstructorDecl.rewriteSignalTypes() {
+    getBlock().rewriteSignalTypes();
+  }
+
+  public void FieldDecl.rewriteSignalTypes() {
+    List<FieldDeclarator> decls = getDeclarators();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      decls.getChildNoTransform(i).rewriteSignalTypes();
+    }
+  }
+
+  public void FieldDeclarator.rewriteSignalTypes() {
+    Expr init = getInit();
+    if (init != null) {
+      setInit(init.rewriteSignalTypes(RewriteMode.GET));
+    }
+  }
+
+  public void MethodDecl.rewriteSignalTypes() {
+    if (hasBlock()) getBlock().rewriteSignalTypes();
+  }
+
+  public void Stmt.rewriteSignalTypes() { }
+
+  public void VarDeclStmt.rewriteSignalTypes() {
+    List<VariableDeclarator> decls = getDeclarators();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      decls.getChild(i).rewriteSignalTypes();
+    }
+  }
+
+  public void Declarator.rewriteSignalTypes() {
+    List<Dims> dims = getDimsList();
+    for (int i=0; i<dims.getNumChildNoTransform(); i++) {
+      dims.getChildNoTransform(i).rewriteSignalTypes(RewriteMode.GET);
+    }
+    if (hasInit()) setInit(getInit().rewriteSignalTypes(RewriteMode.GET));
+  }
+
+  public void Block.rewriteSignalTypes() {
+    List<Stmt> stmts = getStmts();
+    for (int i=0; i<stmts.getNumChildNoTransform(); i++) {
+      stmts.getChildNoTransform(i).rewriteSignalTypes();
+    }
+  }
+
+  public void LabeledStmt.rewriteSignalTypes() {
+    getStmt().rewriteSignalTypes();
+  }
+
+  public void ExprStmt.rewriteSignalTypes() {
+    Expr expr = getExpr();
+    setExpr(expr.rewriteSignalTypes(RewriteMode.GET));
+  }
+
+  public void SwitchStmt.rewriteSignalTypes() {
+    Expr expr = getExpr();
+    setExpr(expr.rewriteSignalTypes(RewriteMode.GET));
+    getBlock().rewriteSignalTypes();
+  }
+
+  public void IfStmt.rewriteSignalTypes() {
+    Expr cond = getCondition();
+    setCondition(cond.rewriteSignalTypes(RewriteMode.GET));
+    getThen().rewriteSignalTypes();
+    if (hasElse()) getElse().rewriteSignalTypes();
+  }
+
+  public void WhileStmt.rewriteSignalTypes() {
+    Expr cond = getCondition();
+    setCondition(cond.rewriteSignalTypes(RewriteMode.GET));
+    getStmt().rewriteSignalTypes();
+  }
+
+  public void DoStmt.rewriteSignalTypes() {
+    getStmt().rewriteSignalTypes();
+    Expr cond = getCondition();
+    setCondition(cond.rewriteSignalTypes(RewriteMode.GET));
+  }
+
+  public void ForStmt.rewriteSignalTypes() {
+    List<Stmt> initStmts = getInitStmts();
+    for (int i=0; i<initStmts.getNumChildNoTransform(); i++) {
+      initStmts.getChildNoTransform(i).rewriteSignalTypes();
+    }
+    if (hasCondition()) {
+      Expr cond = getCondition();
+      setCondition(cond.rewriteSignalTypes(RewriteMode.GET));
+    }
+    List<Stmt> updateStmts = getUpdateStmts();
+    for (int i=0; i<updateStmts.getNumChildNoTransform(); i++) {
+      updateStmts.getChildNoTransform(i).rewriteSignalTypes();
+    }
+  }
+
+  public void ReturnStmt.rewriteSignalTypes() {
+    if (hasResult()) {
+      Expr result = getResult();
+      setResult(result.rewriteSignalTypes(RewriteMode.GET));
+    }
+  }
+
+  public void ThrowStmt.rewriteSignalTypes() {
+    Expr expr = getExpr();
+    setExpr(expr.rewriteSignalTypes(RewriteMode.GET));
+  }
+
+  public void SynchronizedStmt.rewriteSignalTypes() {
+    Expr expr = getExpr();
+    setExpr(expr.rewriteSignalTypes(RewriteMode.GET));
+    getBlock().rewriteSignalTypes();
+  }
+
+  public void TryStmt.rewriteSignalTypes() {
+    getBlock().rewriteSignalTypes();
+    List<CatchClause> catches = getCatchClauses();
+    for (int i=0; i<catches.getNumChildNoTransform(); i++) {
+      ((CatchClause)catches.getChildNoTransform(i)).rewriteSignalTypes();
+    }
+    if (hasFinally()) getFinally().rewriteSignalTypes();
+  }
+
+  public void CatchClause.rewriteSignalTypes() {
+    getBlock().rewriteSignalTypes();
+  }
+
+  public void AssertStmt.rewriteSignalTypes() {
+    Expr cond = getCondition();
+    setCondition(cond.rewriteSignalTypes(RewriteMode.GET));
+    if (hasMessage()) {
+      Expr message = getMessage();
+      setMessage(message.rewriteSignalTypes(RewriteMode.GET));
+    }
+  }
+
+  public void LocalClassDeclStmt.rewriteSignalTypes() {
+    getClassDecl().rewriteSignalTypes();
+  }
+
+  public void BasicCatch.rewriteSignalTypes() {
+    getBlock().rewriteSignalTypes();
+  }
+
+  public Expr Expr.rewriteSignalTypes(RewriteMode mode) { return this; }
+
+  public Expr AbstractDot.rewriteSignalTypes(RewriteMode mode) {
+    if (mode == RewriteMode.GET && getLeft().isSignalType()) return this;
+
+    Expr left = getLeft();
+    setLeft(left.rewriteSignalTypes(mode));
+    Access right = getRight();
+    setRight((Access)right.rewriteSignalTypes(mode));
+    return this;
+  }
+
+  public Expr VarAccess.rewriteSignalTypes(RewriteMode mode) {
+    if (mode == RewriteMode.LAST) return this;
+
+    if (isSignalType()) {
+      MethodAccess mAccess = new MethodAccess("__signalj__get", new List());
+      return qualifiesAccess(mAccess);
+    } else {
+      return this;
+    }
+  }
+
+  public Expr MethodAccess.rewriteSignalTypes(RewriteMode mode) {
+    if (mode == RewriteMode.LAST) {
+      if (name().equals("__signalj__get")) this.setID("last");
+    }
+
+    List<Expr> args = getArgs();
+    for (int i=0; i<args.getNumChildNoTransform(); i++) {
+      Expr expr = args.getChild(i);
+      setArg(expr.rewriteSignalTypes(mode), i);
+    }
+    return this;
+  }
+
+  public Expr ConstructorAccess.rewriteSignalTypes(RewriteMode mode) {
+    List<Expr> args = getArgs();
+    for (int i=0; i<args.getNumChildNoTransform(); i++) {
+      Expr expr = args.getChild(i);
+      setArg(expr.rewriteSignalTypes(mode), i);
+    }
+    return this;
+  }
+
+  public Expr ArrayTypeWithSizeAccess.rewriteSignalTypes(RewriteMode mode) {
+    Expr expr = getExpr();
+    setExpr(expr.rewriteSignalTypes(mode));
+    return this;
+  }
+
+  public Expr ArrayAccess.rewriteSignalTypes(RewriteMode mode) {
+    Expr expr = getExpr();
+    setExpr(expr.rewriteSignalTypes(mode));
+    return this;
+  }
+
+  public Expr ClassInstanceExpr.rewriteSignalTypes(RewriteMode mode) {
+    List<Expr> args = getArgs();
+    for (int i=0; i<args.getNumChildNoTransform(); i++) {
+      Expr expr = args.getChild(i);
+      setArg(expr.rewriteSignalTypes(mode), i);
+    }
+    return this;
+  }
+
+  public Expr ArrayInit.rewriteSignalTypes(RewriteMode mode) {
+    List<Expr> inits = getInits();
+    for (int i=0; i<inits.getNumChildNoTransform(); i++) {
+      Expr expr = inits.getChild(i);
+      setInit(expr.rewriteSignalTypes(mode), i);
+    }
+    return this;
+  }
+
+  public Expr AssignSimpleExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (getDest().isSignalType()) {
+      Expr dest = getDest();
+      return dest.qualifiesAccess(new MethodAccess("set", new List().add(getSource().rewriteSignalTypes(mode))));
+    } else {
+      Expr source = getSource();
+      setSource(source.rewriteSignalTypes(mode));
+      return this;
+    }
+  }
+
+  public Expr AssignPlusExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (getDest().isSignalType()) {
+      Expr dest = getDest();
+      Expr lambda = new AddExpr((Expr)dest.qualifiesAccess(new MethodAccess("__signalj__get", new List())), getSource().rewriteSignalTypes(mode));
+      return dest.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+    } else {
+      Expr source = getSource();
+      setSource(source.rewriteSignalTypes(mode));
+      return this;
+    }
+  }
+
+  public Expr AssignMinusExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (getDest().isSignalType()) {
+      Expr dest = getDest();
+      Expr lambda = new SubExpr((Expr)dest.qualifiesAccess(new MethodAccess("__signalj__get", new List())), getSource().rewriteSignalTypes(mode));
+      return dest.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+    } else {
+      Expr source = getSource();
+      setSource(source.rewriteSignalTypes(mode));
+      return this;
+    }
+  }
+
+  public Expr AssignMulExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (getDest().isSignalType()) {
+      Expr dest = getDest();
+      Expr lambda = new MulExpr((Expr)dest.qualifiesAccess(new MethodAccess("__signalj__get", new List())), getSource().rewriteSignalTypes(mode));
+      return dest.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+    } else {
+      Expr source = getSource();
+      setSource(source.rewriteSignalTypes(mode));
+      return this;
+    }
+  }
+
+  public Expr AssignDivExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (getDest().isSignalType()) {
+      Expr dest = getDest();
+      Expr lambda = new DivExpr((Expr)dest.qualifiesAccess(new MethodAccess("__signalj__get", new List())), getSource().rewriteSignalTypes(mode));
+      return dest.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+    } else {
+      Expr source = getSource();
+      setSource(source.rewriteSignalTypes(mode));
+      return this;
+    }
+  }
+
+  public Expr AssignModExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (getDest().isSignalType()) {
+      Expr dest = getDest();
+      Expr lambda = new ModExpr((Expr)dest.qualifiesAccess(new MethodAccess("__signalj__get", new List())), getSource().rewriteSignalTypes(mode));
+      return dest.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+    } else {
+      Expr source = getSource();
+      setSource(source.rewriteSignalTypes(mode));
+      return this;
+    }
+  }
+
+  /* TODO:
+    AssignShiftExpr
+    AssignBitwiseExpr
+  */
+
+  public Expr PreIncExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (getOperand().isSignalType()) {
+      Expr operand = getOperand();
+      IntegerLiteral one = new IntegerLiteral("1");
+      one.setDigits("1");
+      Expr lambda = new AddExpr((Expr)operand.qualifiesAccess(new MethodAccess("__signalj__get", new List())), one);
+      return operand.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+    } else {
+      return this;
+    }
+  } 
+
+  public Expr PreDecExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (getOperand().isSignalType()) {
+      Expr operand = getOperand();
+      IntegerLiteral one = new IntegerLiteral("1");
+      one.setDigits("1");
+      Expr lambda = new SubExpr((Expr)operand.qualifiesAccess(new MethodAccess("__signalj__get", new List())), one);
+      return operand.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+    } else {
+      return this;
+    }
+  } 
+
+  public Expr PostIncExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (getOperand().isSignalType()) {
+      Expr operand = getOperand();
+      IntegerLiteral one = new IntegerLiteral("1");
+      one.setDigits("1");
+      Expr lambda = new AddExpr((Expr)operand.qualifiesAccess(new MethodAccess("__signalj__get", new List())), one);
+      return operand.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+    } else {
+      return this;
+    }
+  }
+
+  public Expr PostDecExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (getOperand().isSignalType()) {
+      Expr operand = getOperand();
+      IntegerLiteral one = new IntegerLiteral("1");
+      one.setDigits("1");
+      Expr lambda = new SubExpr((Expr)operand.qualifiesAccess(new MethodAccess("__signalj__get", new List())), one);
+      return operand.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+    } else {
+      return this;
+    }
+  }
+
+  public Expr ParExpr.rewriteSignalTypes(RewriteMode mode) {
+    Expr expr = getExpr();
+    setExpr(expr.rewriteSignalTypes(mode));
+    return this;
+  }
+
+  public Expr ArrayCreationExpr.rewriteSignalTypes(RewriteMode mode) {
+    if (hasArrayInit()) {
+      ArrayInit arrayInit = getArrayInit();
+      setArrayInit((ArrayInit)arrayInit.rewriteSignalTypes(mode));
+    }
+    return this;
+  }
+
+  public void Dims.rewriteSignalTypes(RewriteMode mode) {
+    if (hasExpr()) {
+      Expr expr = getExpr();
+      setExpr(expr.rewriteSignalTypes(mode));
+    }
+  }
+
+  public Expr Unary.rewriteSignalTypes(RewriteMode mode) {
+    Expr operand = getOperand();
+    setOperand(operand.rewriteSignalTypes(mode));
+    return this;
+  }
+
+  public Expr CastExpr.rewriteSignalTypes(RewriteMode mode) {
+    Expr expr = getExpr();
+    setExpr(expr.rewriteSignalTypes(mode));
+    return this;
+  }
+
+  public Expr Binary.rewriteSignalTypes(RewriteMode mode) {
+    Expr left = getLeftOperand();
+    setLeftOperand(left.rewriteSignalTypes(mode));
+    Expr right = getRightOperand();
+    setRightOperand(right.rewriteSignalTypes(mode));
+    return this;
+  }
+
+  public Expr InstanceOfExpr.rewriteSignalTypes(RewriteMode mode) {
+    Expr expr = getExpr();
+    setExpr(expr.rewriteSignalTypes(mode));
+    return this;
+  }
+
+  public Expr ConditionalExpr.rewriteSignalTypes(RewriteMode mode) {
+    Expr cond = getCondition();
+    setCondition(cond.rewriteSignalTypes(mode));
+    Expr trueExpr = getTrueExpr();
+    setTrueExpr(trueExpr.rewriteSignalTypes(mode));
+    Expr falseExpr = getFalseExpr();
+    setFalseExpr(falseExpr.rewriteSignalTypes(mode));
+    return this;
+  }
+
+  public boolean Expr.containsSignal() { return false; }
+
+  public boolean AbstractDot.containsSignal() {
+    return getLeft().containsSignal() || getRight().containsSignal();
+  }
+
+  public boolean VarAccess.containsSignal() {
+    return isSignalType();
+  }
+
+  public boolean MethodAccess.containsSignal() {
+    List<Expr> args = getArgs();
+    for (int i=0; i<args.getNumChildNoTransform(); i++) {
+      Expr expr = args.getChild(i);
+      if (expr.containsSignal()) return true;
+    }
+    return false;
+  }
+
+  public boolean ConstructorAccess.containsSignal() {
+    List<Expr> args = getArgs();
+    for (int i=0; i<args.getNumChildNoTransform(); i++) {
+      Expr expr = args.getChild(i);
+      if (expr.containsSignal()) return true;
+    }
+    return false;
+  }
+
+  public boolean ArrayTypeWithSizeAccess.containsSignal() {
+    Expr expr = getExpr();
+    return expr.containsSignal();
+  }
+
+  public boolean ArrayAccess.containsSignal() {
+    Expr expr = getExpr();
+    return expr.containsSignal();
+  }
+
+  public boolean ClassInstanceExpr.containsSignal() {
+    List<Expr> args = getArgs();
+    for (int i=0; i<args.getNumChildNoTransform(); i++) {
+      Expr expr = args.getChild(i);
+      if (expr.containsSignal()) return true;
+    }
+    return false;
+  }
+
+  public boolean ArrayInit.containsSignal() {
+    List<Expr> inits = getInits();
+    for (int i=0; i<inits.getNumChildNoTransform(); i++) {
+      Expr expr = inits.getChild(i);
+      if (expr.containsSignal()) return true;
+    }
+    return false;
+  }
+
+  public boolean ParExpr.containsSignal() {
+    Expr expr = getExpr();
+    return expr.containsSignal();
+  }
+
+  public boolean ArrayCreationExpr.containsSignal() {
+    if (hasArrayInit()) {
+      ArrayInit arrayInit = getArrayInit();
+      return arrayInit.containsSignal();
+    }
+    return false;
+  }
+
+  public boolean Dims.containsSignal() {
+    if (hasExpr()) {
+      Expr expr = getExpr();
+      return expr.containsSignal();
+    }
+    return false;
+  }
+
+  public boolean Unary.containsSignal() {
+    Expr operand = getOperand();
+    return operand.containsSignal();
+  }
+
+  public boolean CastExpr.containsSignal() {
+    Expr expr = getExpr();
+    return expr.containsSignal();
+  }
+
+  public boolean Binary.containsSignal() {
+    Expr left = getLeftOperand();
+    Expr right = getRightOperand();
+    return left.containsSignal() || right.containsSignal();
+  }
+
+  public boolean InstanceOfExpr.containsSignal() {
+    Expr expr = getExpr();
+    return expr.containsSignal();
+  }
+
+  public boolean ConditionalExpr.containsSignal() {
+    Expr cond = getCondition();
+    Expr trueExpr = getTrueExpr();
+    Expr falseExpr = getFalseExpr();
+    return cond.containsSignal() || trueExpr.containsSignal() || falseExpr.containsSignal();
+  }
+
+}
