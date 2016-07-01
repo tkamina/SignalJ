@@ -148,6 +148,10 @@ aspect SignalValue {
   }
 
   public boolean Expr.isSignalType() {
+    if (this instanceof VarAccess) {
+      VarAccess a = (VarAccess)this;
+      if (a.decl().getModifiers().isSignal()) return true;
+    }  
     if (!(type() instanceof ClassDecl)) return false;
 
     return type().packageName().equals("signalj") &&

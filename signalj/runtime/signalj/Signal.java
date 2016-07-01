@@ -36,15 +36,34 @@ import java.util.function.Consumer;
 public class Signal<T> {
     T value = null;
     T last = null;
+    T sum = null;
     Vector<Consumer<T>> consumers = new Vector<Consumer<T>>();
 
     public Signal(T value) {
 	this.value = value;
 	this.last = value;
+	this.sum = value;
     }
 
     public void set(T value) {
 	last = this.value;
+	if (sum instanceof Integer) {
+	    Integer num = (Integer)sum;
+	    num += (Integer)this.value;
+	    sum = (T)num;
+	} else if (sum instanceof Long) {
+	    Long num = (Long)sum;
+	    num += (Long)this.value;
+	    sum = (T)num;
+	} else if (sum instanceof Double) {
+	    Double num = (Double)sum;
+	    num += (Double)this.value;
+	    sum = (T)num;
+	} else if (sum instanceof Float) {
+	    Float num = (Float)sum;
+	    num += (Float)this.value;
+	    sum = (T)num;
+	}
 	this.value = value;
 	for (Consumer<T> c : consumers) {
 	    c.accept(value);
@@ -63,5 +82,10 @@ public class Signal<T> {
     
     public T last() {
 	return last;
+    }
+
+    public T sum() {
+	if (sum instanceof Number) return sum;
+	else return value;
     }
 }
