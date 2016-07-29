@@ -34,10 +34,11 @@ import java.util.Vector;
 import java.util.function.Consumer;
 
 public class Signal<T> {
-    T value = null;
-    T last = null;
-    T sum = null;
-    Vector<Consumer<T>> consumers = new Vector<Consumer<T>>();
+    private T value = null;
+    private T last = null;
+    private T sum = null;
+    private Vector<Consumer<T>> consumers = new Vector<Consumer<T>>();
+    private Vector<CompositeSignal<T>> danglingSignals = new Vector<CompositeSignal<T>>();
 
     public Signal(T value) {
 	this.value = value;
@@ -45,28 +46,36 @@ public class Signal<T> {
 	this.sum = value;
     }
 
-    public void set(T value) {
-	last = this.value;
+    protected T computeSumInner(T sum, T value) {
 	if (sum instanceof Integer) {
 	    Integer num = (Integer)sum;
-	    num += (Integer)this.value;
+	    num += (Integer)value;
 	    sum = (T)num;
 	} else if (sum instanceof Long) {
 	    Long num = (Long)sum;
-	    num += (Long)this.value;
+	    num += (Long)value;
 	    sum = (T)num;
 	} else if (sum instanceof Double) {
 	    Double num = (Double)sum;
-	    num += (Double)this.value;
+	    num += (Double)value;
 	    sum = (T)num;
 	} else if (sum instanceof Float) {
 	    Float num = (Float)sum;
-	    num += (Float)this.value;
+	    num += (Float)value;
 	    sum = (T)num;
 	}
+	return sum;
+    }
+
+    public void set(T value) {
+	last = this.value;
+	sum = computeSumInner(sum, value);
 	this.value = value;
 	for (Consumer<T> c : consumers) {
 	    c.accept(value);
+	}
+	for (CompositeSignal<T> s : danglingSignals) {
+            s.computeSum();
 	}
     }
     
@@ -77,6 +86,12 @@ public class Signal<T> {
     public void publish(Consumer<T> listener) {
 	if (!consumers.contains(listener)) {
 	    consumers.add(listener);
+	}
+    }
+
+    public void publish(CompositeSignal<T> s) {
+        if (!danglingSignals.contains(s)) {
+	    danglingSignals.add(s);
 	}
     }
     
