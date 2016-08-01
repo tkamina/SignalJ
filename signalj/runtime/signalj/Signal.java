@@ -75,7 +75,7 @@ public class Signal<T> {
 	    c.accept(value);
 	}
 	for (CompositeSignal<T> s : danglingSignals) {
-            s.computeSum();
+            s.update();
 	}
     }
     

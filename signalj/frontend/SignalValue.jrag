@@ -47,13 +47,16 @@ aspect SignalValue {
         if (vdecl.getInit() != null) {
           Expr lambdaExpr = vdecl.getInit();
           List lambdaArgs = new List();
+
+          // The "last expression" that was passed to the CompositeSignal constructor is
+          // no longer necessary.  It should be refactored in future.
           Expr last = (Expr)vdecl.getInit().fullCopy();
           last.setParent(vdecl.getInit().getParent());
           Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.LAST, util);
           if (vdecl.getInit().containsSignal()) {
             lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(vdecl.getInit())));
 	    lambdaArgs.add(lambdaExpr);
-            lambdaArgs.add(new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(lambdaLast))));
+//            lambdaArgs.add(new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(lambdaLast))));
             for (VarAccess v : util.getSourceVars()) {
               lambdaArgs.add(v);
             }
@@ -85,6 +88,9 @@ aspect SignalValue {
         if (fdecl.getInit() != null) {
           Expr lambdaExpr = fdecl.getInit();
           List lambdaArgs = new List();
+
+          // The "last expression" that was passed to the CompositeSignal constructor is
+          // no longer necessary.  It should be refactored in future.
           Expr last = (Expr)fdecl.getInit().fullCopy();
           last.setParent(fdecl.getInit().getParent());
           Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.GET, util);
@@ -92,7 +98,7 @@ aspect SignalValue {
 	  if (fdecl.getInit().containsSignal()) {
             lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(fdecl.getInit())));
             lambdaArgs.add(lambdaExpr);
-            lambdaArgs.add(new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(lambdaLast))));
+//            lambdaArgs.add(new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(lambdaLast))));
             for (VarAccess v : util.getSourceVars()) {
               lambdaArgs.add(v);
             }

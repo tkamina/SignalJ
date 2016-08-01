@@ -36,7 +36,8 @@ import java.util.function.Consumer;
 
 public class CompositeSignal<T> extends Signal<T> {
     private SignalInterface<T> object;
-    private SignalInterface<T> last;
+    private T last;
+    private T current;
     private T sum;
     private Vector<Signal<T>> sources = new Vector<Signal<T>>();
 
@@ -44,11 +45,13 @@ public class CompositeSignal<T> extends Signal<T> {
 	super(object.method());
     }
 
-    public CompositeSignal(SignalInterface<T> object, SignalInterface<T> last, Signal<T>... signals) {
+    public CompositeSignal(SignalInterface<T> object, Signal<T>... signals) {
 	this(object);
 	this.object = object;
-	this.last = last;
-	this.sum = object.method();
+	T memo = object.method();
+	this.current = memo;
+	this.last = memo;
+	this.sum = memo;
         for (Signal<T> s : signals) {
 	    if (s instanceof CompositeSignal) {
 		CompositeSignal cs = (CompositeSignal)s;
@@ -66,13 +69,15 @@ public class CompositeSignal<T> extends Signal<T> {
     }
 
     public T __signalj__get() {
-	return object.method();
+	return current;
     }
 
-    public T last() { return last.method(); }
+    public T last() { return last; }
     public T sum() { return sum; }
 
-    public void computeSum() {
-	sum = computeSumInner(sum, object.method());
+    public void update() {
+	last = current;
+	current = object.method();
+	sum = computeSumInner(sum, current);
     }
 }
