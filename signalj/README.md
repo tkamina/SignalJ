@@ -13,3 +13,5 @@ To build the SignalJ compiler, you need to follow the following instructions.
 To run the compiler, you just need to run the following command.
 
 $ java -jar signalj.jar [source files]
+
+The subdirectory "runtime" contains the SignalJ runtime library, which is necessary to run the SignalJ program.  To run your program, it is necessary to include this runtime library in your classpath.
