@@ -182,6 +182,10 @@ aspect SignalValue {
   }
 
   public void CompilationUnit.rewriteSignalTypes() {
+    List<ImportDecl> idecls = getImportDecls();
+    ImportDecl idecl = new TypeImportOnDemandDecl(new PackageAccess("signalj"));
+    idecls.add(idecl);
+
     List<TypeDecl> decls = getTypeDecls();
     for (int i=0; i<decls.getNumChildNoTransform(); i++) {
       decls.getChildNoTransform(i).rewriteSignalTypes();
