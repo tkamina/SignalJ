@@ -37,7 +37,7 @@ public class Signal<T> {
     private T value = null;
     private T last = null;
     private T sum = null;
-    private Vector<Consumer<T>> consumers = new Vector<Consumer<T>>();
+    protected Vector<Consumer<Signal<T>>> consumers = new Vector<Consumer<Signal<T>>>();
     private Vector<CompositeSignal<T>> danglingSignals = new Vector<CompositeSignal<T>>();
 
     public Signal(T value) {
@@ -55,13 +55,13 @@ public class Signal<T> {
 	    Long num = (Long)sum;
 	    num += (Long)value;
 	    sum = (T)num;
-	} else if (sum instanceof Double) {
-	    Double num = (Double)sum;
-	    num += (Double)value;
-	    sum = (T)num;
 	} else if (sum instanceof Float) {
 	    Float num = (Float)sum;
 	    num += (Float)value;
+	    sum = (T)num;
+	} else if (sum instanceof Double) {
+	    Double num = (Double)sum;
+	    num += (Double)value;
 	    sum = (T)num;
 	}
 	return sum;
@@ -71,9 +71,11 @@ public class Signal<T> {
 	last = this.value;
 	sum = computeSumInner(sum, value);
 	this.value = value;
-	for (Consumer<T> c : consumers) {
-	    c.accept(value);
+
+	for (Consumer<Signal<T>> c : consumers) {
+	    c.accept(new Signal<T>(value));
 	}
+
 	for (CompositeSignal<T> s : danglingSignals) {
             s.update();
 	}
@@ -82,10 +84,10 @@ public class Signal<T> {
     public T __signalj__get() {
 	return value;
     }
-    
-    public void publish(Consumer<T> listener) {
-	if (!consumers.contains(listener)) {
-	    consumers.add(listener);
+
+    public void publish(Consumer<Signal<T>> cs) {
+	if (!consumers.contains(cs)) {
+	    consumers.add(cs);
 	}
     }
 

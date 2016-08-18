@@ -79,5 +79,8 @@ public class CompositeSignal<T> extends Signal<T> {
 	last = current;
 	current = object.method();
 	sum = computeSumInner(sum, current);
+	for (Consumer<Signal<T>> c : consumers) {
+	    c.accept(new Signal<T>(current));
+	}
     }
 }

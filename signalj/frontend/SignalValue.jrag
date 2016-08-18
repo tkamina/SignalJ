@@ -38,7 +38,6 @@ aspect SignalValue {
       SignalJRewriteUtil util = new SignalJRewriteUtil();
       Modifiers ms = util.toRewrittenModifiers(getModifiers());
 
-//      Access reType = util.toRewrittenType(getTypeAccess());
       Access reType = null;
 
       List<VariableDeclarator> vdecls = getDeclarators();
@@ -59,7 +58,6 @@ aspect SignalValue {
             reType = util.toRewrittenType(getTypeAccess(), true);
             lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(vdecl.getInit())));
 	    lambdaArgs.add(lambdaExpr);
-//            lambdaArgs.add(new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(lambdaLast))));
             for (VarAccess v : util.getSourceVars()) {
               lambdaArgs.add(v);
             }
@@ -89,7 +87,6 @@ aspect SignalValue {
       SignalJRewriteUtil util = new SignalJRewriteUtil();
       Modifiers ms = util.toRewrittenModifiers(getModifiers());
 
-//      Access reType = util.toRewrittenType(getTypeAccess());
       Access reType = null;
 
       List<FieldDeclarator> fdecls = getDeclarators();
@@ -111,7 +108,6 @@ aspect SignalValue {
             reType = util.toRewrittenType(getTypeAccess(), true);
             lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(fdecl.getInit())));
             lambdaArgs.add(lambdaExpr);
-//            lambdaArgs.add(new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(lambdaLast))));
             for (VarAccess v : util.getSourceVars()) {
               lambdaArgs.add(v);
             }
@@ -135,6 +131,16 @@ aspect SignalValue {
     }
   }
 
+  rewrite ParameterDeclaration {
+    when(getModifiers().isSignal() && !rewritten)
+    to ParameterDeclaration {
+      SignalJRewriteUtil util = new SignalJRewriteUtil();
+      Modifiers ms = util.toRewrittenModifiers(getModifiers());
+      Access reType = util.toRewrittenType(getTypeAccess());
+      return new ParameterDeclaration(ms, reType, getID());
+    }
+  }
+
   enum RewriteMode { GET, LAST }
 
   public class SignalJRewriteUtil {
@@ -151,6 +157,10 @@ aspect SignalValue {
         }
       }
       return ms;
+    }
+
+    public Access toRewrittenType(Access type) {
+      return toRewrittenType(type, false);
     }
 
     public Access toRewrittenType(Access type, boolean composite) {
