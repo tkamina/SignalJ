@@ -346,8 +346,8 @@ aspect SignalValue {
 
   public void ReturnStmt.rewriteSignalTypes() {
     if (hasResult()) {
-      Expr result = getResult();
-      setResult(result.rewriteSignalTypes(RewriteMode.GET, null));
+      Expr result = getResult().rewriteSignalTypes(RewriteMode.GET, null);
+      setResult(result);
     }
   }
 
@@ -423,8 +423,10 @@ aspect SignalValue {
 
     List<Expr> args = getArgs();
     for (int i=0; i<args.getNumChildNoTransform(); i++) {
-      Expr expr = args.getChild(i);
-      setArg(expr.rewriteSignalTypes(mode, util), i);
+      if (! decl().getParameterNoTransform(i).getModifiers().isSignal() || util != null) {
+        Expr expr = args.getChild(i);
+        setArg(expr.rewriteSignalTypes(mode, util), i);
+      }
     }
     return this;
   }

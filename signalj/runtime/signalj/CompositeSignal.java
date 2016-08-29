@@ -43,15 +43,15 @@ public class CompositeSignal<T> extends Signal<T> {
 
     public CompositeSignal(SignalInterface<T> object) {
 	super(object.method());
-    }
-
-    public CompositeSignal(SignalInterface<T> object, Signal<T>... signals) {
-	this(object);
 	this.object = object;
 	T memo = object.method();
 	this.current = memo;
 	this.last = memo;
 	this.sum = memo;
+    }
+
+    public CompositeSignal(SignalInterface<T> object, Signal<T>... signals) {
+	this(object);
         for (Signal<T> s : signals) {
 	    if (s instanceof CompositeSignal) {
 		CompositeSignal cs = (CompositeSignal)s;
