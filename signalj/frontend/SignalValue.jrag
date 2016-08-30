@@ -342,6 +342,11 @@ aspect SignalValue {
     for (int i=0; i<updateStmts.getNumChildNoTransform(); i++) {
       updateStmts.getChildNoTransform(i).rewriteSignalTypes();
     }
+    getStmt().rewriteSignalTypes();
+  }
+
+  public void EnhancedForStmt.rewriteSignalTypes() {
+    getStmt().rewriteSignalTypes();
   }
 
   public void ReturnStmt.rewriteSignalTypes() {
