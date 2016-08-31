@@ -30,6 +30,13 @@
 import java.util.Vector;
 
 aspect SignalValue {
+  public boolean VarAccess.equals(Object that) {
+    if (that instanceof VarAccess) {
+      VarAccess var = (VarAccess)that;
+      return this.getID().equals(var.getID());
+    } else return false;
+  }
+
   syn lazy boolean Modifiers.isSignal() = numModifier("signal") != 0;
 
   rewrite VarDeclStmt {

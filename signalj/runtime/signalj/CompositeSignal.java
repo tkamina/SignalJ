@@ -36,16 +36,12 @@ import java.util.function.Consumer;
 
 public class CompositeSignal<T> extends Signal<T> {
     private SignalInterface<T> object;
-    private T last;
-    private T current;
-    private T sum;
     private Vector<Signal<T>> sources = new Vector<Signal<T>>();
 
     public CompositeSignal(SignalInterface<T> object) {
 	super(object.method());
 	this.object = object;
 	T memo = object.method();
-	this.current = memo;
 	this.last = memo;
 	this.sum = memo;
     }
@@ -68,19 +64,16 @@ public class CompositeSignal<T> extends Signal<T> {
         }
     }
 
-    public T __signalj__get() {
-	return current;
-    }
-
     public T last() { return last; }
     public T sum() { return sum; }
 
     public void update() {
-	last = current;
-	current = object.method();
-	sum = computeSumInner(sum, current);
+	last = value;
+	value = object.method();
+	sum = computeSumInner(sum, value);
+	count++;
 	for (Consumer<Signal<T>> c : consumers) {
-	    c.accept(new Signal<T>(current));
+	    c.accept(this);
 	}
     }
 }

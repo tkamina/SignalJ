@@ -34,9 +34,10 @@ import java.util.Vector;
 import java.util.function.Consumer;
 
 public class Signal<T> {
-    private T value = null;
-    private T last = null;
-    private T sum = null;
+    protected T value = null;
+    protected T last = null;
+    protected T sum = null;
+    protected int count;
     protected Vector<Consumer<Signal<T>>> consumers = new Vector<Consumer<Signal<T>>>();
     private Vector<CompositeSignal<T>> danglingSignals = new Vector<CompositeSignal<T>>();
 
@@ -44,6 +45,7 @@ public class Signal<T> {
 	this.value = value;
 	this.last = value;
 	this.sum = value;
+	this.count = 0;
     }
 
     protected T computeSumInner(T sum, T value) {
@@ -71,9 +73,10 @@ public class Signal<T> {
 	last = this.value;
 	sum = computeSumInner(sum, value);
 	this.value = value;
+	count++;
 
 	for (Consumer<Signal<T>> c : consumers) {
-	    c.accept(new Signal<T>(value));
+	    c.accept(this);
 	}
 
 	for (CompositeSignal<T> s : danglingSignals) {
@@ -105,4 +108,26 @@ public class Signal<T> {
 	if (sum instanceof Number) return sum;
 	else return value;
     }
+
+    public T average() {
+	if (count != 0) {
+	    if (sum instanceof Integer) {
+		Integer num = (Integer)sum;
+		return (T)new Integer(num / new Integer(count));
+	    } else if (sum instanceof Long) {
+		Long num = (Long)sum;
+		return (T)new Long(num / new Long(count));
+	    } else if (sum instanceof Float) {
+		Float num = (Float)sum;
+		return (T)new Float(num / new Float(count));
+	    } else if (sum instanceof Double) {
+		Double num = (Double)sum;
+		return (T)new Double(num / new Double(count));
+	    }
+	    else return (T)new Integer(0);
+	} else return (T)new Integer(0);
+    }
+
+    public T value() { return value; }
+    public int count() { return count; }
 }
