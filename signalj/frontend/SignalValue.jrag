@@ -63,7 +63,10 @@ aspect SignalValue {
           if (vdecl.getInit().containsSignal()) {
             // composite signal
             reType = util.toRewrittenType(getTypeAccess(), true);
-            lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(vdecl.getInit())));
+            Expr init = (Expr)vdecl.getInit().fullCopy();
+            init.setParent(vdecl.getInit().getParent());
+            Expr rewritten = init.rewriteSignalTypes(RewriteMode.GET, util);
+            lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(rewritten)));
 	    lambdaArgs.add(lambdaExpr);
             for (VarAccess v : util.getSourceVars()) {
               lambdaArgs.add(v);
@@ -212,7 +215,7 @@ aspect SignalValue {
       if (a.decl().getModifiers().isSignal()) return true;
     }  
     if (!(type() instanceof ClassDecl)) return false;
-
+    
     return type().packageName().equals("signalj") &&
            (((ClassDecl)type()).getID().equals("Signal"));
   }
@@ -441,6 +444,9 @@ aspect SignalValue {
           Expr expr = args.getChild(i);
           setArg(expr.rewriteSignalTypes(mode, util), i);
         }
+      } else {
+        Expr expr = args.getChild(i);
+        setArg(expr.rewriteSignalTypes(mode, util), i);
       }
     }
     return this;

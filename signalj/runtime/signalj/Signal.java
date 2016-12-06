@@ -43,7 +43,6 @@ public class Signal<T> {
 
     public Signal(T value) {
 	this.value = value;
-	this.last = value;
 	this.sum = value;
 	this.count = 0;
     }
@@ -99,9 +98,10 @@ public class Signal<T> {
 	    danglingSignals.add(s);
 	}
     }
-    
-    public T last() {
-	return last;
+
+    public T last(T def) {
+	if (last == null) return def;
+	else return last;
     }
 
     public T sum() {
