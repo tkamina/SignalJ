@@ -30,50 +30,21 @@
 
 package signalj;
 
-import java.util.Vector;
-import java.util.Iterator;
-import java.util.function.Consumer;
+public class OrSignal<T> extends CompositeSignal<T> {
 
-public class CompositeSignal<T> extends Signal<T> {
-    private SignalInterface<T> object;
-    private Vector<Signal<T>> sources = new Vector<Signal<T>>();
-
-    public CompositeSignal(SignalInterface<T> object) {
-	super(object.method());
-	this.object = object;
-	T memo = object.method();
-	this.last = memo;
-	this.sum = memo;
+    public OrSignal(SignalInterface<T> object) {
+	super(object);
     }
 
-    public CompositeSignal(SignalInterface<T> object, Signal<T>... signals) {
-	this(object);
-        for (Signal<T> s : signals) {
-	    if (s instanceof CompositeSignal) {
-		CompositeSignal cs = (CompositeSignal)s;
-		for (Iterator<Signal<T>> iter = cs.sources.iterator();
-		     iter.hasNext(); ) {
-		    Signal<T> s1 = iter.next();
-		    s1.publish(this);
-		    sources.add(s1);
-		}
-	    } else {
-		s.publish(this);
-		sources.add(s);		
-	    }
-        }
+    public OrSignal(SignalInterface<T> object, Signal<T>... signals) {
+	super(object, signals);
     }
-
-    public T last() { return last; }
-    public T sum() { return sum; }
 
     public void update(Signal<T> source) {
-	last = value;
-	value = object.method();
-	sum = computeSumInner(sum, value);
-	count++;
-	for (Consumer<Signal<T>> c : consumers) {
-	    c.accept(this);
-	}
+	or = source.value();
+	super.update(source);
     }
+
+    public T value() { return or; }
+    public T __signalj_get() { return or; }
 }

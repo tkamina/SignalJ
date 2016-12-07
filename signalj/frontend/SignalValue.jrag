@@ -60,18 +60,47 @@ aspect SignalValue {
           Expr last = (Expr)vdecl.getInit().fullCopy();
           last.setParent(vdecl.getInit().getParent());
           Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.LAST, util);
-          if (vdecl.getInit().containsSignal()) {
-            // composite signal
+          if (vdecl.getInit().containsSignal()) { // composite signal
+            String signalName = "CompositeSignal";
+
+            // checking whether it is an "OR" signal
+            if (vdecl.getInit() instanceof AbstractDot) {
+              AbstractDot aDot = (AbstractDot)vdecl.getInit();
+              if (aDot.getRight() instanceof MethodAccess) {
+                MethodAccess maybeOr = (MethodAccess)aDot.getRight();
+                if (aDot.getLeft().isSignalType() && maybeOr.getID().equals("or"))
+                  signalName = "OrSignal";
+              }
+            }
+
             reType = util.toRewrittenType(getTypeAccess(), true);
             Expr init = (Expr)vdecl.getInit().fullCopy();
             init.setParent(vdecl.getInit().getParent());
             Expr rewritten = init.rewriteSignalTypes(RewriteMode.GET, util);
             lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(rewritten)));
 	    lambdaArgs.add(lambdaExpr);
+
+            // checking whether it is a "WHEN" signal
+            if (vdecl.getInit() instanceof AbstractDot) {
+              AbstractDot aDot = (AbstractDot)vdecl.getInit();
+              if (aDot.getRight() instanceof MethodAccess) {
+                MethodAccess maybeWhen = (MethodAccess)aDot.getRight();
+                if (aDot.getLeft().isSignalType() && maybeWhen.getID().equals("when")) {
+                  signalName = "WhenSignal";
+                  List whenArgs = maybeWhen.getArgs();
+                  Expr p = (Expr)whenArgs.getChildNoTransform(0);
+                  Expr def = (Expr)whenArgs.getChildNoTransform(1);
+                  Expr lambdaP = new CastExpr(new TypeAccess("signalj", "WhenInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(p)));
+                  lambdaArgs.add(lambdaP);
+                  lambdaArgs.add(def);
+                }
+              }
+            }
+
             for (VarAccess v : util.getSourceVars()) {
               lambdaArgs.add(v);
             }
-            vdecl = new VariableDeclarator(vdecl.getID(), vdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "CompositeSignal"), util.args), lambdaArgs, new Opt())));
+            vdecl = new VariableDeclarator(vdecl.getID(), vdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), util.args), lambdaArgs, new Opt())));
           } else {
             // source signal
             reType = util.toRewrittenType(getTypeAccess(), false);
@@ -113,15 +142,44 @@ aspect SignalValue {
           last.setParent(fdecl.getInit().getParent());
           Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.GET, util);
           lambdaLast = lambdaLast.rewriteSignalTypes(RewriteMode.LAST, util);
-	  if (fdecl.getInit().containsSignal()) {
-            // composite signal
+	  if (fdecl.getInit().containsSignal()) {// composite signal
+            String signalName = "CompositeSignal";
+
+            // checking whether it is an "OR" signal
+            if (fdecl.getInit() instanceof AbstractDot) {
+              AbstractDot aDot = (AbstractDot)fdecl.getInit();
+              if (aDot.getRight() instanceof MethodAccess) {
+                MethodAccess maybeOr = (MethodAccess)aDot.getRight();
+                if (aDot.getLeft().isSignalType() && maybeOr.getID().equals("or"))
+                  signalName = "OrSignal";
+              }
+            }
+
             reType = util.toRewrittenType(getTypeAccess(), true);
             lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(fdecl.getInit())));
             lambdaArgs.add(lambdaExpr);
+
+            // checking whether it is a "WHEN" signal
+            if (fdecl.getInit() instanceof AbstractDot) {
+              AbstractDot aDot = (AbstractDot)fdecl.getInit();
+              if (aDot.getRight() instanceof MethodAccess) {
+                MethodAccess maybeWhen = (MethodAccess)aDot.getRight();
+                if (aDot.getLeft().isSignalType() && maybeWhen.getID().equals("when")) {
+                  signalName = "WhenSignal";
+                  List whenArgs = maybeWhen.getArgs();
+                  Expr p = (Expr)whenArgs.getChildNoTransform(0);
+                  Expr def = (Expr)whenArgs.getChildNoTransform(1);
+                  Expr lambdaP = new CastExpr(new TypeAccess("signalj", "WhenInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(p)));
+                  lambdaArgs.add(lambdaP);
+                  lambdaArgs.add(def);
+                }
+              }
+            }
+
             for (VarAccess v : util.getSourceVars()) {
               lambdaArgs.add(v);
             }
-            fdecl = new FieldDeclarator(fdecl.getID(), fdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "CompositeSignal"), util.args), lambdaArgs, new Opt())));
+            fdecl = new FieldDeclarator(fdecl.getID(), fdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), util.args), lambdaArgs, new Opt())));
           } else {
             // source signal
             reType = util.toRewrittenType(getTypeAccess(), false);
@@ -212,7 +270,8 @@ aspect SignalValue {
   public boolean Expr.isSourceSignalType() {
     if (this instanceof VarAccess) {
       VarAccess a = (VarAccess)this;
-      if (a.decl().getModifiers().isSignal()) return true;
+      Modifiers m = a.decl().getModifiers();
+      if (m != null && m.isSignal()) return true;
     }  
     if (!(type() instanceof ClassDecl)) return false;
     
@@ -223,7 +282,8 @@ aspect SignalValue {
   public boolean Expr.isSignalType() {
     if (this instanceof VarAccess) {
       VarAccess a = (VarAccess)this;
-      if (a.decl().getModifiers().isSignal()) return true;
+      Modifiers m = a.decl().getModifiers();
+      if (m != null && m.isSignal()) return true;
     }
     if (!(type() instanceof ClassDecl)) return false;
     return isSourceSignalType() || ((ClassDecl)type()).getID().equals("CompositeSignal");

@@ -36,6 +36,7 @@ import java.util.function.Consumer;
 public class Signal<T> {
     protected T value = null;
     protected T last = null;
+    protected T or = null;
     protected T sum = null;
     protected int count;
     protected Vector<Consumer<Signal<T>>> consumers = new Vector<Consumer<Signal<T>>>();
@@ -43,6 +44,7 @@ public class Signal<T> {
 
     public Signal(T value) {
 	this.value = value;
+	this.or = value;
 	this.sum = value;
 	this.count = 0;
     }
@@ -79,7 +81,7 @@ public class Signal<T> {
 	}
 
 	for (CompositeSignal<T> s : danglingSignals) {
-            s.update();
+            s.update(this);
 	}
     }
     
@@ -130,4 +132,12 @@ public class Signal<T> {
 
     public T value() { return value; }
     public int count() { return count; }
+
+    public T or(Signal<T> arg) {
+	return or;
+    }
+    public T when(boolean p, T def) {
+	if (p) return value;
+	else return def;
+    }
 }
