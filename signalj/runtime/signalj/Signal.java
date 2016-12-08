@@ -133,7 +133,7 @@ public class Signal<T> {
     public T value() { return value; }
     public int count() { return count; }
 
-    public T or(Signal<T> arg) {
+    public T or(T arg) {
 	return or;
     }
     public T when(boolean p, T def) {

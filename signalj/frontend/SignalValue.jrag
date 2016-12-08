@@ -254,8 +254,9 @@ aspect SignalValue {
         } else {
 
         }
+      } else if (type instanceof TypeAccess) {
+        args.add(type);
       } else {
-        
       }
       return reType;
     }
@@ -467,13 +468,30 @@ aspect SignalValue {
     getBlock().rewriteSignalTypes();
   }
 
+  public Expr LambdaExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
+    getLambdaBody().rewriteSignalTypes(mode, util);
+    return this;
+  }
+
+  public void LambdaBody.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {}
+
+  public void BlockLambdaBody.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
+    getBlock().rewriteSignalTypes();
+  }
+
+  public void ExprLambdaBody.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
+    Expr expr = getExpr();
+    setExpr(expr.rewriteSignalTypes(mode, util));
+  }
+
   public Expr Expr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) { return this; }
 
   public Expr AbstractDot.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
-    if (mode == RewriteMode.GET && getLeft().isSignalType()) return this;
+    if (!(mode == RewriteMode.GET && getLeft().isSignalType())) {//return this;
 
-    Expr left = getLeft();
-    setLeft(left.rewriteSignalTypes(mode, util));
+      Expr left = getLeft();
+      setLeft(left.rewriteSignalTypes(mode, util));
+    }
     Access right = getRight();
     setRight((Access)right.rewriteSignalTypes(mode, util));
     return this;
