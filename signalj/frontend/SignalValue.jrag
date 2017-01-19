@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Tetsuo Kamina
+/* Copyright (c) 2016-2017, Tetsuo Kamina
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -575,7 +575,8 @@ aspect SignalValue {
   public Expr AssignSimpleExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
     if (getDest().isSourceSignalType()) {
       Expr dest = getDest();
-      return dest.qualifiesAccess(new MethodAccess("set", new List().add(getSource().rewriteSignalTypes(mode, util))));
+      Expr dest2 = (Expr)dest.fullCopy();
+      return dest2.qualifiesAccess(new MethodAccess("set", new List().add(getSource().rewriteSignalTypes(mode, util))));
     } else {
       Expr source = getSource();
       setSource(source.rewriteSignalTypes(mode, util));
@@ -586,8 +587,9 @@ aspect SignalValue {
   public Expr AssignPlusExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
     if (getDest().isSourceSignalType()) {
       Expr dest = getDest();
+      Expr dest2 = (Expr)dest.fullCopy();
       Expr lambda = new AddExpr((Expr)dest.qualifiesAccess(new MethodAccess("__signalj__get", new List())), getSource().rewriteSignalTypes(mode, util));
-      return dest.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+      return dest2.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
     } else {
       Expr source = getSource();
       setSource(source.rewriteSignalTypes(mode, util));
@@ -598,8 +600,9 @@ aspect SignalValue {
   public Expr AssignMinusExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
     if (getDest().isSourceSignalType()) {
       Expr dest = getDest();
+      Expr dest2 = (Expr)dest.fullCopy();
       Expr lambda = new SubExpr((Expr)dest.qualifiesAccess(new MethodAccess("__signalj__get", new List())), getSource().rewriteSignalTypes(mode, util));
-      return dest.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+      return dest2.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
     } else {
       Expr source = getSource();
       setSource(source.rewriteSignalTypes(mode, util));
@@ -610,8 +613,9 @@ aspect SignalValue {
   public Expr AssignMulExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
     if (getDest().isSourceSignalType()) {
       Expr dest = getDest();
+      Expr dest2 = (Expr)dest.fullCopy();
       Expr lambda = new MulExpr((Expr)dest.qualifiesAccess(new MethodAccess("__signalj__get", new List())), getSource().rewriteSignalTypes(mode, util));
-      return dest.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+      return dest2.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
     } else {
       Expr source = getSource();
       setSource(source.rewriteSignalTypes(mode, util));
@@ -622,8 +626,9 @@ aspect SignalValue {
   public Expr AssignDivExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
     if (getDest().isSourceSignalType()) {
       Expr dest = getDest();
+      Expr dest2 = (Expr)dest.fullCopy();
       Expr lambda = new DivExpr((Expr)dest.qualifiesAccess(new MethodAccess("__signalj__get", new List())), getSource().rewriteSignalTypes(mode, util));
-      return dest.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+      return dest2.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
     } else {
       Expr source = getSource();
       setSource(source.rewriteSignalTypes(mode, util));
@@ -634,8 +639,9 @@ aspect SignalValue {
   public Expr AssignModExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
     if (getDest().isSourceSignalType()) {
       Expr dest = getDest();
+      Expr dest2 = (Expr)dest.fullCopy();
       Expr lambda = new ModExpr((Expr)dest.qualifiesAccess(new MethodAccess("__signalj__get", new List())), getSource().rewriteSignalTypes(mode, util));
-      return dest.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+      return dest2.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
     } else {
       Expr source = getSource();
       setSource(source.rewriteSignalTypes(mode, util));
@@ -651,10 +657,11 @@ aspect SignalValue {
   public Expr PreIncExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
     if (getOperand().isSourceSignalType()) {
       Expr operand = getOperand();
+      Expr operand2 = (Expr)operand.fullCopy();
       IntegerLiteral one = new IntegerLiteral("1");
       one.setDigits("1");
       Expr lambda = new AddExpr((Expr)operand.qualifiesAccess(new MethodAccess("__signalj__get", new List())), one);
-      return operand.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+      return operand2.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
     } else {
       return this;
     }
@@ -663,10 +670,11 @@ aspect SignalValue {
   public Expr PreDecExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
     if (getOperand().isSourceSignalType()) {
       Expr operand = getOperand();
+      Expr operand2 = (Expr)operand.fullCopy();
       IntegerLiteral one = new IntegerLiteral("1");
       one.setDigits("1");
       Expr lambda = new SubExpr((Expr)operand.qualifiesAccess(new MethodAccess("__signalj__get", new List())), one);
-      return operand.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+      return operand2.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
     } else {
       return this;
     }
@@ -675,10 +683,11 @@ aspect SignalValue {
   public Expr PostIncExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
     if (getOperand().isSourceSignalType()) {
       Expr operand = getOperand();
+      Expr operand2 = (Expr)operand.fullCopy();
       IntegerLiteral one = new IntegerLiteral("1");
       one.setDigits("1");
       Expr lambda = new AddExpr((Expr)operand.qualifiesAccess(new MethodAccess("__signalj__get", new List())), one);
-      return operand.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+      return operand2.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
     } else {
       return this;
     }
@@ -687,10 +696,11 @@ aspect SignalValue {
   public Expr PostDecExpr.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
     if (getOperand().isSourceSignalType()) {
       Expr operand = getOperand();
+      Expr operand2 = (Expr)operand.fullCopy();
       IntegerLiteral one = new IntegerLiteral("1");
       one.setDigits("1");
       Expr lambda = new SubExpr((Expr)operand.qualifiesAccess(new MethodAccess("__signalj__get", new List())), one);
-      return operand.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
+      return operand2.qualifiesAccess(new MethodAccess("set", new List().add(lambda)));
     } else {
       return this;
     }
