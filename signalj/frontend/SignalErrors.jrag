@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Tetsuo Kamina
+/* Copyright (c) 2016-2017, Tetsuo Kamina
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+import java.util.Vector;
+
 aspect SignalErrors {
   refine Modifiers eq FieldDecl.modifierProblems() {
     Collection<Problem> problems = refined();
@@ -43,5 +45,326 @@ aspect SignalErrors {
       problems.add(error("Signal value is not initialized."));
     }
     return problems;
+  }
+
+/*
+  refine TypeCheck eq MethodDecl.typeProblems() {
+    Collection<Problem> problems = refined();
+    List<ParameterDeclaration> params = getParameters();
+    for (int i=0; i<params.getNumChildNoTransform(); i++) {
+      ParameterDeclaration p = params.getChildNoTransform(i);
+      Modifiers ms = p.getModifiers();
+      if (ms.isSignal()) {
+        problems.add(error("formal parameters cannot be signals"));
+      }
+    }
+    return problems;
+  }
+*/
+
+  public Vector<Problem> CompilationUnit.checkSignalTypes() {
+    Vector<Problem> problems = new Vector<Problem>();
+    List<TypeDecl> decls = getTypeDecls();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      decls.getChildNoTransform(i).checkSignalTypes(problems);
+    }
+    return problems;
+  }
+
+  public void TypeDecl.checkSignalTypes(Vector<Problem> problems) { }
+
+  public void ClassDecl.checkSignalTypes(Vector<Problem> problems) {
+    List<BodyDecl> decls = getBodyDecls();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      decls.getChildNoTransform(i).checkSignalTypes(problems);
+    }
+  }
+
+  public void BodyDecl.checkSignalTypes(Vector<Problem> problems) { }
+
+  public void InstanceInitializer.checkSignalTypes(Vector<Problem> problems) {
+    getBlock().checkSignalTypes(problems);
+  }
+
+  public void StaticInitializer.checkSignalTypes(Vector<Problem> problems) {
+    getBlock().checkSignalTypes(problems);
+  }
+
+  public void ConstructorDecl.checkSignalTypes(Vector<Problem> problems) {
+    getBlock().checkSignalTypes(problems);
+  }
+
+  public void MethodDecl.checkSignalTypes(Vector<Problem> problems) {
+    if (hasBlock()) getBlock().checkSignalTypes(problems);
+  }
+
+  public void Stmt.checkSignalTypes(Vector<Problem> problems) { }
+
+  public void Expr.checkNoSignals(Vector<Problem> problems) {
+    if (this instanceof LambdaExpr) {
+      LambdaBody lb = ((LambdaExpr)this).getLambdaBody();
+      if (lb instanceof BlockLambdaBody) {
+        ((BlockLambdaBody)lb).getBlock().checkNoSignals(problems);
+      } else {
+        ((ExprLambdaBody)lb).getExpr().checkNoSignalsInner(problems);
+      }
+    } else if (this instanceof MethodReference) {
+    }
+  }
+
+  public void Block.checkSignalTypes(Vector<Problem> problems) {
+    List<Stmt> stmts = getStmts();
+    for (int i=0; i<stmts.getNumChildNoTransform(); i++) {
+      stmts.getChildNoTransform(i).checkSignalTypes(problems);
+    }
+  }  
+
+  public void Block.checkNoSignals(Vector<Problem> problems) {
+    List<Stmt> stmts = getStmts();
+    for (int i=0; i<stmts.getNumChildNoTransform(); i++) {
+      Stmt stmt = stmts.getChildNoTransform(i);
+      stmt.checkNoSignals(problems);
+    }
+  }
+
+  public void Stmt.checkNoSignals(Vector<Problem> problems) { }
+
+  public void VarDeclStmt.checkSignalTypes(Vector<Problem> problems) {
+    List<VariableDeclarator> decls = getDeclarators();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      decls.getChild(i).checkSignalTypes(problems);
+    }
+  }
+
+  public void VarDeclStmt.checkNoSignals(Vector<Problem> problems) {
+    List<VariableDeclarator> decls = getDeclarators();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      decls.getChild(i).checkNoSignals(problems);
+    }
+  }
+
+  public void Declarator.checkSignalTypes(Vector<Problem> problems) {
+    List<Dims> dims = getDimsList();
+    for (int i=0; i<dims.getNumChildNoTransform(); i++) {
+      dims.getChildNoTransform(i).checkSignalTypes(problems);
+    }
+    if (hasInit()) getInit().checkSignalTypes(problems);
+  }
+
+  public void Declarator.checkNoSignals(Vector<Problem> problems) {
+    List<Dims> dims = getDimsList();
+    for (int i=0; i<dims.getNumChildNoTransform(); i++) {
+      dims.getChildNoTransform(i).checkNoSignals(problems);
+    }
+    if (hasInit()) getInit().checkNoSignalsInner(problems);
+  }
+
+  public void Dims.checkSignalTypes(Vector<Problem> problems) {
+    if (hasExpr()) getExpr().checkSignalTypes(problems);
+  }
+
+  public void Dims.checkNoSignals(Vector<Problem> problems) {
+    if (hasExpr()) getExpr().checkNoSignalsInner(problems);
+  }
+
+  public void LabeledStmt.checkSignalTypes(Vector<Problem> problems) {
+    getStmt().checkSignalTypes(problems);
+  }
+
+  public void LabeledStmt.checkNoSignals(Vector<Problem> problems) {
+    getStmt().checkNoSignals(problems);
+  }
+
+  public void ExprStmt.checkSignalTypes(Vector<Problem> problems) {
+    getExpr().checkSignalTypes(problems);
+  }
+
+  public void ExprStmt.checkNoSignals(Vector<Problem> problems) {
+    getExpr().checkNoSignalsInner(problems);
+  }
+
+  public void SwitchStmt.checkSignalTypes(Vector<Problem> problems) {
+    getExpr().checkSignalTypes(problems);
+    getBlock().checkSignalTypes(problems);
+  }
+
+  public void SwitchStmt.checkNoSignals(Vector<Problem> problems) {
+    getExpr().checkNoSignalsInner(problems);
+    getBlock().checkNoSignals(problems);
+  }
+
+  public void IfStmt.checkSignalTypes(Vector<Problem> problems) {
+    getCondition().checkSignalTypes(problems);
+    getThen().checkSignalTypes(problems);
+    if (hasElse()) getElse().checkSignalTypes(problems);
+  }
+
+  public void IfStmt.checkNoSignals(Vector<Problem> problems) {
+    getCondition().checkNoSignalsInner(problems);
+    getThen().checkNoSignals(problems);
+    if (hasElse()) getElse().checkNoSignals(problems);
+  }
+
+  public void WhileStmt.checkSignalTypes(Vector<Problem> problems) {
+    getCondition().checkSignalTypes(problems);
+    getStmt().checkSignalTypes(problems);
+  }
+
+  public void WhileStmt.checkNoSignals(Vector<Problem> problems) {
+    getCondition().checkNoSignalsInner(problems);
+    getStmt().checkNoSignals(problems);
+  }
+
+  public void DoStmt.checkSignalTypes(Vector<Problem> problems) {
+    getStmt().checkSignalTypes(problems);
+    getCondition().checkSignalTypes(problems);
+  }
+
+  public void DoStmt.checkNoSignals(Vector<Problem> problems) {
+    getStmt().checkNoSignals(problems);
+    getCondition().checkNoSignalsInner(problems);
+  }
+
+  public void ForStmt.checkSignalTypes(Vector<Problem> problems) {
+    List<Stmt> initStmts = getInitStmts();
+    for (int i=0; i<initStmts.getNumChildNoTransform(); i++) {
+      initStmts.getChildNoTransform(i).checkSignalTypes(problems);
+    }
+    if (hasCondition()) getCondition().checkSignalTypes(problems);
+    List<Stmt> updateStmts = getUpdateStmts();
+    for (int i=0; i<updateStmts.getNumChildNoTransform(); i++) {
+      updateStmts.getChildNoTransform(i).checkSignalTypes(problems);
+    }
+    getStmt().checkSignalTypes(problems);
+  }
+
+  public void ForStmt.checkNoSignals(Vector<Problem> problems) {
+    List<Stmt> initStmts = getInitStmts();
+    for (int i=0; i<initStmts.getNumChildNoTransform(); i++) {
+      initStmts.getChildNoTransform(i).checkNoSignals(problems);
+    }
+    if (hasCondition()) getCondition().checkNoSignalsInner(problems);
+    List<Stmt> updateStmts = getUpdateStmts();
+    for (int i=0; i<updateStmts.getNumChildNoTransform(); i++) {
+      updateStmts.getChildNoTransform(i).checkNoSignals(problems);
+    }
+    getStmt().checkNoSignals(problems);
+  }
+
+  public void EnhancedForStmt.checkSignalTypes(Vector<Problem> problems) {
+    getStmt().checkSignalTypes(problems);
+  }
+
+  public void EnhancedForStmt.checkNoSignals(Vector<Problem> problems) {
+    getStmt().checkNoSignals(problems);
+  }
+
+  public void SynchronizedStmt.checkSignalTypes(Vector<Problem> problems) {
+    getExpr().checkSignalTypes(problems);
+    getBlock().checkSignalTypes(problems);
+  }
+
+  public void SynchronizedStmt.checkNoSignals(Vector<Problem> problems) {
+    getExpr().checkNoSignalsInner(problems);
+    getBlock().checkNoSignals(problems);
+  }
+
+  public void TryStmt.checkSignalTypes(Vector<Problem> problems) {
+    getBlock().checkSignalTypes(problems);
+    List<CatchClause> catches = getCatchClauses();
+    for (int i=0; i<catches.getNumChildNoTransform(); i++) {
+      ((CatchClause)catches.getChildNoTransform(i)).checkSignalTypes(problems);
+    }
+    if (hasFinally()) getFinally().checkSignalTypes(problems);
+  }
+
+  public void TryStmt.checkNoSignals(Vector<Problem> problems) {
+    getBlock().checkNoSignals(problems);
+    List<CatchClause> catches = getCatchClauses();
+    for (int i=0; i<catches.getNumChildNoTransform(); i++) {
+      ((CatchClause)catches.getChildNoTransform(i)).checkNoSignals(problems);
+    }
+    if (hasFinally()) getFinally().checkNoSignals(problems);
+  }
+
+  public void CatchClause.checkSignalTypes(Vector<Problem> problems) {
+    getBlock().checkSignalTypes(problems);
+  }
+
+  public void CatchClause.checkNoSignals(Vector<Problem> problems) {
+    getBlock().checkNoSignals(problems);
+  }
+
+  public void BasicCatch.checkSignalTypes(Vector<Problem> problems) {
+    getBlock().checkSignalTypes(problems);
+  }
+
+  public void BasicCatch.checkNoSignals(Vector<Problem> problems) {
+    getBlock().checkNoSignals(problems);
+  }
+
+  public void Expr.checkNoSignalsInner(Vector<Problem> problems) { }
+
+  public void AssignExpr.checkNoSignalsInner(Vector<Problem> problems) {
+    if (getDest().isSignalType()) {
+      problems.add(error("assignment to signal within publish is not allowed"));
+    }
+  }
+
+  public void PreIncExpr.checkNoSignalsInner(Vector<Problem> problems) {
+    if (getOperand().isSignalType()) {
+      problems.add(error("cannot modify signal " + getOperand().prettyPrint() + " within publish"));
+    }
+  }
+
+  public void PreDecExpr.checkNoSignalsInner(Vector<Problem> problems) {
+    if (getOperand().isSignalType()) {
+      problems.add(error("cannot modify signal " + getOperand().prettyPrint() + " within publish"));
+    }
+  }
+
+  public void PostIncExpr.checkNoSignalsInner(Vector<Problem> problems) {
+    if (getOperand().isSignalType()) {
+      problems.add(error("cannot modify signal " + getOperand().prettyPrint() + " within publish"));
+    }
+  }
+
+  public void PostDecExpr.checkNoSignalsInner(Vector<Problem> problems) {
+    if (getOperand().isSignalType()) {
+      problems.add(error("cannot modify signal " + getOperand().prettyPrint() + " within publish"));
+    }
+  }
+
+  public void MethodAccess.checkNoSignalsInner(Vector<Problem> problems) {
+    if (getID().equals("publish")) {
+      ASTNode parent = getParent();
+      if (parent != null && parent instanceof AbstractDot) {
+        if (((AbstractDot)parent).getLeft().isSignalType()) {
+          if (getNumArgNoTransform() < 1) {
+            problems.add(error("an argument is necessary for publish"));
+          } else if (getNumArg() > 1) {
+            problems.add(error("too many arguments for publish"));
+          } else {
+            Expr arg = getArgNoTransform(0);
+            if (!((arg instanceof LambdaExpr) || (arg instanceof MethodReference))) {
+              problems.add(error("invalid argument for publish"));
+            } else {
+              arg.checkNoSignals(problems);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  public void Expr.checkSignalTypes(Vector<Problem> problems) { }
+
+  public void MethodAccess.checkSignalTypes(Vector<Problem> problems) {
+    if (getID().equals("publish")) checkNoSignalsInner(problems);
+  }
+
+  public void AbstractDot.checkSignalTypes(Vector<Problem> problems) {
+    getLeft().checkSignalTypes(problems);
+    getRight().checkSignalTypes(problems);
   }
 }
