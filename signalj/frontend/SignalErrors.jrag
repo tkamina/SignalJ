@@ -31,36 +31,6 @@
 import java.util.Vector;
 
 aspect SignalErrors {
-  refine Modifiers eq FieldDecl.modifierProblems() {
-    Collection<Problem> problems = refined();
-    if (getModifiers().isSignal()) {
-      problems.add(error("Signal value is not initiailzed."));
-    }
-    return problems;
-  }
-
-  syn Collection<Problem> VarDeclStmt.modifierProblems() {
-    Collection<Problem> problems = new LinkedList<Problem>();
-    if (getModifiers().isSignal()) {
-      problems.add(error("Signal value is not initialized."));
-    }
-    return problems;
-  }
-
-/*
-  refine TypeCheck eq MethodDecl.typeProblems() {
-    Collection<Problem> problems = refined();
-    List<ParameterDeclaration> params = getParameters();
-    for (int i=0; i<params.getNumChildNoTransform(); i++) {
-      ParameterDeclaration p = params.getChildNoTransform(i);
-      Modifiers ms = p.getModifiers();
-      if (ms.isSignal()) {
-        problems.add(error("formal parameters cannot be signals"));
-      }
-    }
-    return problems;
-  }
-*/
 
   public Vector<Problem> CompilationUnit.checkSignalTypes() {
     Vector<Problem> problems = new Vector<Problem>();
@@ -98,6 +68,15 @@ aspect SignalErrors {
     if (hasBlock()) getBlock().checkSignalTypes(problems);
   }
 
+  public void FieldDecl.checkSignalTypes(Vector<Problem> problems) {
+    List<FieldDeclarator> decls = getDeclarators();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      if (getModifiers().isSignal() && !getDeclarator(i).hasInit()) {
+        problems.add(error("Signal value is not initiailzed."));
+      }
+    }
+  }
+
   public void Stmt.checkSignalTypes(Vector<Problem> problems) { }
 
   public void Expr.checkNoSignals(Vector<Problem> problems) {
@@ -132,6 +111,9 @@ aspect SignalErrors {
   public void VarDeclStmt.checkSignalTypes(Vector<Problem> problems) {
     List<VariableDeclarator> decls = getDeclarators();
     for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      if (getModifiers().isSignal() && !getDeclarator(i).hasInit()) {
+        problems.add(error("Signal value is not initiailzed."));        
+      }
       decls.getChild(i).checkSignalTypes(problems);
     }
   }
