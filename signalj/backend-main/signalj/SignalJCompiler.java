@@ -33,8 +33,8 @@ package signalj;
 import org.extendj.JavaCompiler;
 import org.extendj.ast.CompilationUnit;
 import org.extendj.ast.Problem;
-import java.util.Vector;
-import java.util.Iterator;
+import java.util.Collection;
+import java.util.LinkedList;
 
 public class SignalJCompiler extends JavaCompiler {
 
@@ -54,7 +54,7 @@ public class SignalJCompiler extends JavaCompiler {
     }
 
     protected int processCompilationUnit(CompilationUnit unit) {
-	Vector<Problem> result = unit.checkSignalTypes();
+	Collection<Problem> result = unit.checkSignalTypes();
 	if (!result.isEmpty()) {
 	    for (Problem p: result) {
 		System.err.println(p);
