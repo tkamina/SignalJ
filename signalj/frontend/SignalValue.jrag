@@ -52,7 +52,16 @@ aspect SignalValue {
       for (int i=0; i<vdecls.getNumChildNoTransform(); i++) {
         VariableDeclarator vdecl = vdecls.getChildNoTransform(i);
         if (vdecl.getInit() != null) {
-          Expr lambdaExpr = vdecl.getInit();
+          Expr lambdaExpr = null;
+          String signalName = "Signal";
+	  if (getModifiers().isFinal()) {
+            Expr init = (Expr)vdecl.getInit().fullCopy();
+            init.setParent(vdecl.getInit().getParent());
+            lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(init)));
+            signalName = "FinalSignal";
+          } else {
+            lambdaExpr = vdecl.getInit();
+          }
           List lambdaArgs = new List();
 
           // The "last expression" that was passed to the CompositeSignal constructor is
@@ -61,7 +70,7 @@ aspect SignalValue {
           last.setParent(vdecl.getInit().getParent());
           Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.LAST, util);
           if (vdecl.getInit().containsSignal()) { // composite signal
-            String signalName = "CompositeSignal";
+            signalName = "CompositeSignal";
 
             // checking whether it is an "OR" signal
             if (vdecl.getInit() instanceof AbstractDot) {
@@ -105,7 +114,7 @@ aspect SignalValue {
             // source signal
             reType = util.toRewrittenType(getTypeAccess(), false);
 	    lambdaArgs.add(lambdaExpr);
-            vdecl = new VariableDeclarator(vdecl.getID(), vdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "Signal"), util.args), lambdaArgs, new Opt())));
+            vdecl = new VariableDeclarator(vdecl.getID(), vdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), util.args), lambdaArgs, new Opt())));
           }
         } else {
           this.rewritten = true;
@@ -133,7 +142,16 @@ aspect SignalValue {
       for (int i=0; i<fdecls.getNumChildNoTransform(); i++) {
         FieldDeclarator fdecl = fdecls.getChildNoTransform(i);
         if (fdecl.getInit() != null) {
-          Expr lambdaExpr = fdecl.getInit();
+          Expr lambdaExpr = null;
+          String signalName = "Signal";
+          if (getModifiers().isFinal()) {
+            Expr init = (Expr)fdecl.getInit().fullCopy();
+            init.setParent(fdecl.getInit().getParent());
+            lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(init)));
+            signalName = "FinalSignal";
+          } else {
+            lambdaExpr = fdecl.getInit();
+          }
           List lambdaArgs = new List();
 
           // The "last expression" that was passed to the CompositeSignal constructor is
@@ -143,7 +161,7 @@ aspect SignalValue {
           Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.GET, util);
           lambdaLast = lambdaLast.rewriteSignalTypes(RewriteMode.LAST, util);
 	  if (fdecl.getInit().containsSignal()) {// composite signal
-            String signalName = "CompositeSignal";
+            signalName = "CompositeSignal";
 
             // checking whether it is an "OR" signal
             if (fdecl.getInit() instanceof AbstractDot) {
@@ -184,7 +202,7 @@ aspect SignalValue {
             // source signal
             reType = util.toRewrittenType(getTypeAccess(), false);
             lambdaArgs.add(lambdaExpr);
-            fdecl = new FieldDeclarator(fdecl.getID(), fdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "Signal"), util.args), lambdaArgs, new Opt())));
+            fdecl = new FieldDeclarator(fdecl.getID(), fdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), util.args), lambdaArgs, new Opt())));
           }
         } else {
           // When no initializer, the FieldDecl is unchanged.
