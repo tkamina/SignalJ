@@ -132,6 +132,15 @@ public class Signal<T> {
 
     public T value() { return value; }
     public int count() { return count; }
+    public void iterateTo(T to) {
+	if (to instanceof Integer) {
+	    Integer i = (Integer)value;
+	    for (; ((Integer)value)<((Integer)to); ) {
+		i++;
+		set((T)i);
+	    }
+	}
+    }
 
     public T or(T arg) {
 	return or;
