@@ -34,7 +34,7 @@ import java.util.Vector;
 import java.util.function.Consumer;
 
 public class Signal<T> {
-    protected T value = null;
+    public T value = null;
     protected T last = null;
     protected T or = null;
     protected T sum = null;

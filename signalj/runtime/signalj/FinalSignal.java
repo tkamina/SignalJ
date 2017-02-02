@@ -38,6 +38,10 @@ public class FinalSignal<T> extends Signal<T> {
 	this.object = object;
     }
 
-    public T __signalj__get() { return object.method(); }
-    public T value() { return object.method(); }
+    public T __signalj__get() {
+	set(object.method());
+	return value;
+    }
+
+    public T value() { return __signalj__get(); }
 }
