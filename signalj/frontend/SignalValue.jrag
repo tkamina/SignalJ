@@ -106,7 +106,7 @@ aspect SignalValue {
               }
             }
 
-            for (VarAccess v : util.getSourceVars()) {
+            for (Expr v : util.getSourceVars()) {
               lambdaArgs.add(v);
             }
             vdecl = new VariableDeclarator(vdecl.getID(), vdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), util.args), lambdaArgs, new Opt())));
@@ -158,8 +158,9 @@ aspect SignalValue {
           // no longer necessary.  It should be refactored in future.
           Expr last = (Expr)fdecl.getInit().fullCopy();
           last.setParent(fdecl.getInit().getParent());
-          Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.GET, util);
-          lambdaLast = lambdaLast.rewriteSignalTypes(RewriteMode.LAST, util);
+//          Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.GET, util);
+//          lambdaLast = lambdaLast.rewriteSignalTypes(RewriteMode.LAST, util);
+          Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.LAST, util);
 	  if (fdecl.getInit().containsSignal()) {// composite signal
             signalName = "CompositeSignal";
 
@@ -194,7 +195,7 @@ aspect SignalValue {
               }
             }
 
-            for (VarAccess v : util.getSourceVars()) {
+            for (Expr v : util.getSourceVars()) {
               lambdaArgs.add(v);
             }
             fdecl = new FieldDeclarator(fdecl.getID(), fdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), util.args), lambdaArgs, new Opt())));
@@ -232,7 +233,7 @@ aspect SignalValue {
   public class SignalJRewriteUtil {
 
     public List<Access> args = new List<Access>();
-    public Vector<VarAccess> sourceVars = new Vector<VarAccess>();
+    public Vector<Expr> sourceVars = new Vector<Expr>();
 
     public Modifiers toRewrittenModifiers(Modifiers m) {
       Modifiers ms = new Modifiers();
@@ -272,18 +273,18 @@ aspect SignalValue {
         } else {
 
         }
-      } else if (type instanceof TypeAccess) {
+      } else if (type instanceof TypeAccess || type instanceof ParTypeAccess) {
         args.add(type);
       } else {
       }
       return reType;
     }
 
-    public void addSourceVar(VarAccess v) {
+    public void addSourceVar(Expr v) {
       if (!sourceVars.contains(v)) sourceVars.add(v);
     }
 
-    public Vector<VarAccess> getSourceVars() { return sourceVars; }
+    public Vector<Expr> getSourceVars() { return sourceVars; }
   }
 
   public boolean Expr.isSourceSignalType() {
@@ -304,6 +305,7 @@ aspect SignalValue {
       Modifiers m = a.decl().getModifiers();
       if (m != null && m.isSignal()) return true;
     }
+    try { type(); } catch (Exception e) { return false; }
     if (!(type() instanceof ClassDecl)) return false;
     return isSourceSignalType() || ((ClassDecl)type()).getID().equals("CompositeSignal");
   }
@@ -516,7 +518,15 @@ aspect SignalValue {
   }
 
   public Expr VarAccess.rewriteSignalTypes(RewriteMode mode, SignalJRewriteUtil util) {
-    if (isSignalType() && util != null) util.addSourceVar(this);
+    if (isSignalType() && util != null) {
+      if (isQualified()) {
+        Access e = this;;
+        do {
+          e = (Access)e.getParent();
+        } while (e.hasPrevExpr());
+        util.addSourceVar(e);
+      } else util.addSourceVar(this);
+    }
     if (mode == RewriteMode.LAST) return this;
 
     if (isSignalType()) {

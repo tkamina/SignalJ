@@ -46,9 +46,9 @@ public class CompositeSignal<T> extends Signal<T> {
 	this.sum = memo;
     }
 
-    public CompositeSignal(SignalInterface<T> object, Signal<T>... signals) {
+    public CompositeSignal(SignalInterface<T> object, Signal<?>... signals) {
 	this(object);
-        for (Signal<T> s : signals) {
+        for (Signal<?> s : signals) {
 	    if (s instanceof CompositeSignal) {
 		CompositeSignal cs = (CompositeSignal)s;
 		for (Iterator<Signal<T>> iter = cs.sources.iterator();
@@ -58,8 +58,8 @@ public class CompositeSignal<T> extends Signal<T> {
 		    sources.add(s1);
 		}
 	    } else {
-		s.publish(this);
-		sources.add(s);		
+		((Signal<T>)s).publish(this);
+		sources.add((Signal<T>)s);		
 	    }
         }
     }

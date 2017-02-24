@@ -32,9 +32,11 @@ package signalj;
 
 import java.util.Vector;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class Signal<T> {
     public T value = null;
+    private T initial = null;
     protected T last = null;
     protected T or = null;
     protected T sum = null;
@@ -44,6 +46,7 @@ public class Signal<T> {
 
     public Signal(T value) {
 	this.value = value;
+	this.initial = value;
 	this.or = value;
 	this.sum = value;
 	this.count = 0;
@@ -80,8 +83,13 @@ public class Signal<T> {
 	    c.accept(this);
 	}
 
+	Vector<CompositeSignal<T>> tmp = new Vector<CompositeSignal<T>>();
 	for (CompositeSignal<T> s : danglingSignals) {
-            s.update(this);
+	    tmp.add(s);
+	    //            s.update(this);
+	}
+	for (CompositeSignal<T> s : tmp) {
+	    s.update(this);
 	}
     }
     
@@ -148,5 +156,15 @@ public class Signal<T> {
     public T when(boolean p, T def) {
 	if (p) return value;
 	else return def;
+    }
+
+    public <S> S fold(Function<T,S> f, S init) {
+	if (count == 0) return init;
+	else return f.apply(value);
+    }
+
+    public void reset() {
+	value = initial;
+	count = 0;
     }
 }
