@@ -1,0 +1,23 @@
+module("signalj frontend") {
+	moduleName "SignalJ"
+	moduleVariant "frontend"
+
+	imports "java8 frontend"
+
+	java {
+		basedir "src/"
+		include "**/*.java"
+	}
+
+	jastadd {
+		include "frontend/*.jrag"
+	}
+
+	scanner {
+                include "scanner/Keywords.flex"
+	}
+
+	parser {
+		include "parser/*.parser"
+	}
+}

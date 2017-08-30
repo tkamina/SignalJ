@@ -1,0 +1,367 @@
+/* Copyright (c) 2016-2017, Tetsuo Kamina
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from this
+ * software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+
+aspect SignalErrors {
+
+  public Collection<Problem> CompilationUnit.checkSignalTypes() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<TypeDecl> decls = getTypeDecls();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      problems.addAll(decls.getChildNoTransform(i).checkSignalTypes());
+    }
+    return problems;
+  }
+
+  syn Collection<Problem> TypeDecl.checkSignalTypes() = new LinkedList<Problem>();
+
+  eq ClassDecl.checkSignalTypes() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<BodyDecl> decls = getBodyDecls();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      problems.addAll(decls.getChildNoTransform(i).checkSignalTypes());
+    }
+    return problems;
+  }
+
+  syn Collection<Problem> BodyDecl.checkSignalTypes() = new LinkedList<Problem>();
+
+  eq InstanceInitializer.checkSignalTypes() = getBlock().checkSignalTypes();
+
+  eq StaticInitializer.checkSignalTypes() = getBlock().checkSignalTypes();
+
+  eq ConstructorDecl.checkSignalTypes() = getBlock().checkSignalTypes();
+
+  eq MethodDecl.checkSignalTypes() =
+    hasBlock() ? getBlock().checkSignalTypes() : new LinkedList<Problem>();
+
+  eq FieldDecl.checkSignalTypes() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<FieldDeclarator> decls = getDeclarators();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      if (getModifiers().isSignal() && !getDeclarator(i).hasInit()) {
+        problems.add(error("Signal value is not initiailzed."));
+      }
+    }
+    return problems;
+  }
+
+  syn Collection<Problem> Stmt.checkSignalTypes() = new LinkedList<Problem>();
+
+  eq Block.checkSignalTypes() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<Stmt> stmts = getStmts();
+    for (int i=0; i<stmts.getNumChildNoTransform(); i++) {
+      problems.addAll(stmts.getChildNoTransform(i).checkSignalTypes());
+    }
+    return problems;
+  }  
+
+  eq VarDeclStmt.checkSignalTypes() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<VariableDeclarator> decls = getDeclarators();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      if (getModifiers().isSignal() && !getDeclarator(i).hasInit()) {
+        problems.add(error("Signal value is not initiailzed."));        
+      }
+      problems.addAll(decls.getChild(i).checkSignalTypes());
+    }
+    return problems;
+  }
+
+  syn Collection<Problem> Declarator.checkSignalTypes() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<Dims> dims = getDimsList();
+    for (int i=0; i<dims.getNumChildNoTransform(); i++) {
+      problems.addAll(dims.getChildNoTransform(i).checkSignalTypes());
+    }
+    if (hasInit()) problems.addAll(getInit().checkSignalTypes());
+    return problems;
+  }
+
+  syn Collection<Problem> Dims.checkSignalTypes() = getExpr().checkSignalTypes();
+
+  eq LabeledStmt.checkSignalTypes() = getStmt().checkSignalTypes();
+
+  eq ExprStmt.checkSignalTypes() = getExpr().checkSignalTypes();
+
+  eq SwitchStmt.checkSignalTypes() {
+    Collection<Problem> problems = getExpr().checkSignalTypes();
+    problems.addAll(getBlock().checkSignalTypes());
+    return problems;
+  }
+
+  eq IfStmt.checkSignalTypes() {
+    Collection<Problem> problems = getCondition().checkSignalTypes();
+    problems.addAll(getThen().checkSignalTypes());
+    if (hasElse()) problems.addAll(getElse().checkSignalTypes());
+    return problems;
+  }
+
+  eq WhileStmt.checkSignalTypes() {
+    Collection<Problem> problems = getCondition().checkSignalTypes();
+    problems.addAll(getStmt().checkSignalTypes());
+    return problems;
+  }
+
+  eq DoStmt.checkSignalTypes() {
+    Collection<Problem> problems = getStmt().checkSignalTypes();
+    problems.addAll(getCondition().checkSignalTypes());
+    return problems;
+  }
+
+  eq ForStmt.checkSignalTypes() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<Stmt> initStmts = getInitStmts();
+    for (int i=0; i<initStmts.getNumChildNoTransform(); i++) {
+      problems.addAll(initStmts.getChildNoTransform(i).checkSignalTypes());
+    }
+    if (hasCondition()) problems.addAll(getCondition().checkSignalTypes());
+    List<Stmt> updateStmts = getUpdateStmts();
+    for (int i=0; i<updateStmts.getNumChildNoTransform(); i++) {
+      problems.addAll(updateStmts.getChildNoTransform(i).checkSignalTypes());
+    }
+    problems.addAll(getStmt().checkSignalTypes());
+    return problems;
+  }
+
+  eq EnhancedForStmt.checkSignalTypes() = getStmt().checkSignalTypes();
+
+  eq SynchronizedStmt.checkSignalTypes() {
+    Collection<Problem> problems = getExpr().checkSignalTypes();
+    problems.addAll(getBlock().checkSignalTypes());
+    return problems;
+  }
+
+  eq TryStmt.checkSignalTypes() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    problems.addAll(getBlock().checkSignalTypes());
+    List<CatchClause> catches = getCatchClauses();
+    for (int i=0; i<catches.getNumChildNoTransform(); i++) {
+      problems.addAll(((CatchClause)catches.getChildNoTransform(i)).checkSignalTypes());
+    }
+    if (hasFinally()) problems.addAll(getFinally().checkSignalTypes());
+    return problems;
+  }
+
+  syn Collection<Problem> CatchClause.checkSignalTypes() = getBlock().checkSignalTypes();
+
+  syn Collection<Problem> BasicCatch.checkSignalTypes() = getBlock().checkSignalTypes();
+
+  syn Collection<Problem> Expr.checkSignalTypes() = new LinkedList<Problem>();
+
+  eq MethodAccess.checkSignalTypes() =
+    getID().equals("publish") ? checkNoSignalsInner() : new LinkedList<Problem>();
+
+  eq AbstractDot.checkSignalTypes() {
+    Collection<Problem> problems = getLeft().checkSignalTypes();
+    problems.addAll(getRight().checkSignalTypes());
+    return problems;
+  }
+
+  syn Collection<Problem> Expr.checkNoSignals() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    if (this instanceof LambdaExpr) {
+      LambdaBody lb = ((LambdaExpr)this).getLambdaBody();
+      if (lb instanceof BlockLambdaBody) {
+        problems.addAll(((BlockLambdaBody)lb).getBlock().checkNoSignals());
+      } else {
+        problems.addAll(((ExprLambdaBody)lb).getExpr().checkNoSignalsInner());
+      }
+    } else if (this instanceof MethodReference) {
+    }
+    return problems;
+  }
+
+  syn Collection<Problem> Stmt.checkNoSignals() = new LinkedList<Problem>();
+
+  eq Block.checkNoSignals() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<Stmt> stmts = getStmts();
+    for (int i=0; i<stmts.getNumChildNoTransform(); i++) {
+      Stmt stmt = stmts.getChildNoTransform(i);
+      problems.addAll(stmt.checkNoSignals());
+    }
+    return problems;
+  }
+
+  eq VarDeclStmt.checkNoSignals() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<VariableDeclarator> decls = getDeclarators();
+    for (int i=0; i<decls.getNumChildNoTransform(); i++) {
+      problems.addAll(decls.getChild(i).checkNoSignals());
+    }
+    return problems;
+  }
+
+  syn Collection<Problem> Declarator.checkNoSignals() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<Dims> dims = getDimsList();
+    for (int i=0; i<dims.getNumChildNoTransform(); i++) {
+      problems.addAll(dims.getChildNoTransform(i).checkNoSignals());
+    }
+    if (hasInit()) problems.addAll(getInit().checkNoSignalsInner());
+    return problems;
+  }
+
+  syn Collection<Problem> Dims.checkNoSignals() =
+    hasExpr() ? getExpr().checkNoSignalsInner() : new LinkedList<Problem>();
+
+  eq LabeledStmt.checkNoSignals() = getStmt().checkNoSignals();
+
+  eq ExprStmt.checkNoSignals() = getExpr().checkNoSignalsInner();
+
+  eq SwitchStmt.checkNoSignals() {
+    Collection<Problem> problems = getExpr().checkNoSignalsInner();
+    problems.addAll(getBlock().checkNoSignals());
+    return problems;
+  }
+
+  eq IfStmt.checkNoSignals() {
+    Collection<Problem> problems = getCondition().checkNoSignalsInner();
+    problems.addAll(getThen().checkNoSignals());
+    if (hasElse()) problems.addAll(getElse().checkNoSignals());
+    return problems;
+  }
+
+  eq WhileStmt.checkNoSignals() {
+    Collection<Problem> problems = getCondition().checkNoSignalsInner();
+    problems.addAll(getStmt().checkNoSignals());
+    return problems;
+  }
+
+  eq DoStmt.checkNoSignals() {
+    Collection<Problem> problems = getStmt().checkNoSignals();
+    problems.addAll(getCondition().checkNoSignalsInner());
+    return problems;
+  }
+
+  eq ForStmt.checkNoSignals() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    List<Stmt> initStmts = getInitStmts();
+    for (int i=0; i<initStmts.getNumChildNoTransform(); i++) {
+      problems.addAll(initStmts.getChildNoTransform(i).checkNoSignals());
+    }
+    if (hasCondition()) problems.addAll(getCondition().checkNoSignalsInner());
+    List<Stmt> updateStmts = getUpdateStmts();
+    for (int i=0; i<updateStmts.getNumChildNoTransform(); i++) {
+      problems.addAll(updateStmts.getChildNoTransform(i).checkNoSignals());
+    }
+    problems.addAll(getStmt().checkNoSignals());
+    return problems;
+  }
+
+  eq EnhancedForStmt.checkNoSignals() = getStmt().checkNoSignals();
+
+  eq SynchronizedStmt.checkNoSignals() {
+    Collection<Problem> problems = getExpr().checkNoSignalsInner();
+    problems.addAll(getBlock().checkNoSignals());
+    return problems;
+  }
+
+  eq TryStmt.checkNoSignals() {
+    Collection<Problem> problems = new LinkedList<Problem>();
+    problems.addAll(getBlock().checkNoSignals());
+    List<CatchClause> catches = getCatchClauses();
+    for (int i=0; i<catches.getNumChildNoTransform(); i++) {
+      problems.addAll(((CatchClause)catches.getChildNoTransform(i)).checkNoSignals());
+    }
+    if (hasFinally()) problems.addAll(getFinally().checkNoSignals());
+    return problems;
+  }
+
+  syn Collection<Problem> CatchClause.checkNoSignals() = getBlock().checkNoSignals();
+
+  syn Collection<Problem> BasicCatch.checkNoSignals() = getBlock().checkNoSignals();
+
+  syn Collection<Problem> Expr.checkNoSignalsInner() = new LinkedList<Problem>();
+
+  eq AssignExpr.checkNoSignalsInner() {
+    if (getDest().isSignalType()) {
+      return Collections.singletonList(error("assignment to signal within publish is not allowed"));
+    }
+    return new LinkedList<Problem>();
+  }
+
+  eq PreIncExpr.checkNoSignalsInner() {
+    if (getOperand().isSignalType()) {
+      return Collections.singletonList(error("cannot modify signal " + getOperand().prettyPrint() + " within publish"));
+    }
+    return new LinkedList<Problem>();
+  }
+
+  eq PreDecExpr.checkNoSignalsInner() {
+    if (getOperand().isSignalType()) {
+      return Collections.singletonList(error("cannot modify signal " + getOperand().prettyPrint() + " within publish"));
+    }
+    return new LinkedList<Problem>();
+  }
+
+  eq PostIncExpr.checkNoSignalsInner() {
+    if (getOperand().isSignalType()) {
+      return Collections.singletonList(error("cannot modify signal " + getOperand().prettyPrint() + " within publish"));
+    }
+    return new LinkedList<Problem>();
+  }
+
+  eq PostDecExpr.checkNoSignalsInner() {
+    if (getOperand().isSignalType()) {
+      return Collections.singletonList(error("cannot modify signal " + getOperand().prettyPrint() + " within publish"));
+    }
+    return new LinkedList<Problem>();
+  }
+
+  eq MethodAccess.checkNoSignalsInner() {
+    if (getID().equals("publish")) {
+      ASTNode parent = getParent();
+      if (parent != null && parent instanceof AbstractDot) {
+        if (((AbstractDot)parent).getLeft().isSignalType()) {
+          if (getNumArgNoTransform() < 1) {
+            return Collections.singletonList(error("an argument is necessary for publish"));
+          } else if (getNumArg() > 1) {
+            return Collections.singletonList(error("too many arguments for publish"));
+          } else {
+            Expr arg = getArgNoTransform(0);
+            if (!((arg instanceof LambdaExpr) || (arg instanceof MethodReference))) {
+              return Collections.singletonList(error("invalid argument for publish"));
+            } else {
+              return arg.checkNoSignals();
+            }
+          }
+        }
+      }
+    }
+    return new LinkedList<Problem>();
+  }
+
+}
