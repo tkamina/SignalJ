@@ -76,19 +76,6 @@ public class CompositeSignal<T> extends Signal<T> {
 	return flowable.blockingFirst();
     }
 
-    /*
-    public int count() {
-	if (counter == null) {
-	    counter = new Counter();
-	    flowable.subscribe(counter::inc);
-	    return 0;
-	} else {
-	    return counter.getValue();
-	}
-	//	return flowable.count().blockingGet().intValue();
-    }
-    */
-
     public void setEffective() {
 	flowable.subscribe(this::setInnerValue);
     }
@@ -96,9 +83,5 @@ public class CompositeSignal<T> extends Signal<T> {
     public void publish(Consumer<T> cs) {
 	flowable.subscribe(cs);
     }
-
-    public void orInner(T arg) {
-	System.out.println("OR: " + arg);
-	or = arg; }
 
 }

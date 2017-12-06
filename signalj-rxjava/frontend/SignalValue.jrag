@@ -43,7 +43,6 @@ aspect SignalValue {
     when (getModifiers().isSignal() && !rewritten)
     to VarDeclStmt {
       SignalJRewriteUtil util = new SignalJRewriteUtil();
-      Modifiers ms = util.toRewrittenModifiers(getModifiers());
 
       Access reType = null;
 
@@ -52,76 +51,16 @@ aspect SignalValue {
       for (int i=0; i<vdecls.getNumChildNoTransform(); i++) {
         VariableDeclarator vdecl = vdecls.getChildNoTransform(i);
         if (vdecl.getInit() != null) {
-          Expr lambdaExpr = null;
-          String signalName = "Signal";
-	  if (getModifiers().isFinal()) {
-            Expr init = (Expr)vdecl.getInit().fullCopy();
-            init.setParent(vdecl.getInit().getParent());
-            lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(init)));
-            signalName = "FinalSignal";
-          } else {
-            lambdaExpr = vdecl.getInit();
-          }
-          List lambdaArgs = new List();
-
-          // The "last expression" that was passed to the CompositeSignal constructor is
-          // no longer necessary.  It should be refactored in future.
-          Expr last = (Expr)vdecl.getInit().fullCopy();
-          last.setParent(vdecl.getInit().getParent());
-          util.resetHasLast();
-          Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.LAST, util);
           if (vdecl.getInit().containsSignal()) { // composite signal
-            signalName = "CompositeSignal";
-
-            // checking whether it is an "OR" signal
-            if (vdecl.getInit() instanceof AbstractDot) {
-              AbstractDot aDot = (AbstractDot)vdecl.getInit();
-              if (aDot.getRight() instanceof MethodAccess) {
-                MethodAccess maybeOr = (MethodAccess)aDot.getRight();
-                if (aDot.getLeft().isSignalType() && maybeOr.getID().equals("or")) {
-                  maybeOr.addArg(new VarAccess("__x__"));
-                }
-              }
-            }
-
             reType = util.toRewrittenType(getTypeAccess(), true);
-            Expr init = (Expr)vdecl.getInit().fullCopy();
-            init.setParent(vdecl.getInit().getParent());
-
-            init.rewriteSignalTypes(RewriteMode.SEARCH, util);
-            Expr rewritten = init.rewriteSignalTypes(RewriteMode.GET, util);
-            lambdaArgs.add(util.getSourceVars().elementAt(0));
-            util.resetCounter();
-            int numSource = util.getSourceVars().size();
-            if (util.hasLast()) numSource++;
-            int sourceCount = 0;
-            for (Access v : util.getSourceVars()) {
-              Expr mapper = (Expr)rewritten.fullCopy();
-              mapper.setParent(vdecl.getInit().getParent());
-              Access rec = (Access)v.fullCopy();
-              rec.setParent(vdecl.getInit().getParent());
-              List<Access> mapperArgs = new List<Access>();
-              mapperArgs.add(util.getSourceTypes().elementAt(sourceCount));
-              sourceCount++;
-              for (Access a : util.args) { mapperArgs.add(a); }
-              Expr mapperLambda =
-                new CastExpr(
-                 new ParTypeAccess(new TypeAccess("io.reactivex.functions", "Function"), mapperArgs),
-                 new LambdaExpr(new InferredLambdaParameters(new List().add(new InferredParameterDeclaration("__x__"))),
-                               numSource > 1 ?
-                               new ExprLambdaBody(mapper):
-                               new ExprLambdaBody(mapper.rewriteSignalTypes(RewriteMode.RENAME, util)))
-                );
-              lambdaArgs.add(rec.qualifiesAccess(new MethodAccess("getFlowable", new List())).qualifiesAccess(new ParMethodAccess("map", new List().add(mapperLambda), util.args)));
-              util.counterInc();
-            }
-
-            vdecl = new VariableDeclarator(vdecl.getID(), vdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), util.args), lambdaArgs, new Opt())));
-          } else {
-            // source signal
+            vdecl = (VariableDeclarator)util.createCompositeDeclarator(vdecl);
+          } else { // source signal
             reType = util.toRewrittenType(getTypeAccess(), false);
-	    lambdaArgs.add(lambdaExpr);
-            vdecl = new VariableDeclarator(vdecl.getID(), vdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), util.args), lambdaArgs, new Opt())));
+            if (getModifiers().isFinal()) {
+              vdecl = (VariableDeclarator)util.createFinalDeclarator(vdecl);
+            } else {
+              vdecl = (VariableDeclarator)util.createSourceDeclarator(vdecl);
+            }
           }
         } else {
           this.rewritten = true;
@@ -130,6 +69,7 @@ aspect SignalValue {
         reDecls.addChild(vdecl);
       }
 
+      Modifiers ms = util.toRewrittenModifiers(getModifiers());
       return new VarDeclStmt(ms, reType, reDecls);
     }
   }
@@ -140,7 +80,6 @@ aspect SignalValue {
     when(getModifiers().isSignal() && !rewritten)
     to FieldDecl {
       SignalJRewriteUtil util = new SignalJRewriteUtil();
-      Modifiers ms = util.toRewrittenModifiers(getModifiers());
 
       Access reType = null;
 
@@ -149,76 +88,16 @@ aspect SignalValue {
       for (int i=0; i<fdecls.getNumChildNoTransform(); i++) {
         FieldDeclarator fdecl = fdecls.getChildNoTransform(i);
         if (fdecl.getInit() != null) {
-          Expr lambdaExpr = null;
-          String signalName = "Signal";
-          if (getModifiers().isFinal()) {
-            Expr init = (Expr)fdecl.getInit().fullCopy();
-            init.setParent(fdecl.getInit().getParent());
-            lambdaExpr = new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(init)));
-            signalName = "FinalSignal";
-          } else {
-            lambdaExpr = fdecl.getInit();
-          }
-          List lambdaArgs = new List();
-
-          // The "last expression" that was passed to the CompositeSignal constructor is
-          // no longer necessary.  It should be refactored in future.
-          Expr last = (Expr)fdecl.getInit().fullCopy();
-          last.setParent(fdecl.getInit().getParent());
-          util.resetHasLast();
-          Expr lambdaLast = last.rewriteSignalTypes(RewriteMode.LAST, util);
 	  if (fdecl.getInit().containsSignal()) {// composite signal
-            signalName = "CompositeSignal";
-
-            // checking whether it is an "OR" signal
-            if (fdecl.getInit() instanceof AbstractDot) {
-              AbstractDot aDot = (AbstractDot)fdecl.getInit();
-              if (aDot.getRight() instanceof MethodAccess) {
-                MethodAccess maybeOr = (MethodAccess)aDot.getRight();
-                if (aDot.getLeft().isSignalType() && maybeOr.getID().equals("or")) {
-                  maybeOr.addArg(new VarAccess("__x__"));
-                }
-              }
-            }
-
             reType = util.toRewrittenType(getTypeAccess(), true);
-
-            Expr init = (Expr)fdecl.getInit().fullCopy();
-            init.setParent(fdecl.getInit().getParent());
-            init.rewriteSignalTypes(RewriteMode.SEARCH, util);
-            Expr rewritten = init.rewriteSignalTypes(RewriteMode.GET, util);
-            lambdaArgs.add(util.getSourceVars().elementAt(0));
-            util.resetCounter();
-            int numSource = util.getSourceVars().size();
-            if (util.hasLast()) numSource++;
-            int sourceCount = 0;
-            for (Access v : util.getSourceVars()) {
-              Expr mapper = (Expr)rewritten.fullCopy();
-              mapper.setParent(fdecl.getInit().getParent());
-              Access rec = (Access)v.fullCopy();
-              rec.setParent(fdecl.getInit().getParent());
-              List<Access> mapperArgs = new List<Access>();
-              mapperArgs.add(util.getSourceTypes().elementAt(sourceCount));
-              sourceCount++;
-              for (Access a : util.args) { mapperArgs.add(a); }
-              Expr mapperLambda =
-                new CastExpr(
-                 new ParTypeAccess(new TypeAccess("io.reactivex.functions", "Function"), mapperArgs),
-                 new LambdaExpr(new InferredLambdaParameters(new List().add(new InferredParameterDeclaration("__x__"))),
-                               numSource > 1 ?
-                               new ExprLambdaBody(mapper):
-                               new ExprLambdaBody(mapper.rewriteSignalTypes(RewriteMode.RENAME, util)))
-                );
-              lambdaArgs.add(rec.qualifiesAccess(new MethodAccess("getFlowable", new List())).qualifiesAccess(new MethodAccess("map", new List().add(mapperLambda))));
-              util.counterInc();
-            }
-
-            fdecl = new FieldDeclarator(fdecl.getID(), fdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), util.args), lambdaArgs, new Opt())));
-          } else {
-            // source signal
+            fdecl = (FieldDeclarator)util.createCompositeDeclarator(fdecl);
+          } else { // source signal
             reType = util.toRewrittenType(getTypeAccess(), false);
-            lambdaArgs.add(lambdaExpr);
-            fdecl = new FieldDeclarator(fdecl.getID(), fdecl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), util.args), lambdaArgs, new Opt())));
+            if (getModifiers().isFinal()) {
+              fdecl = (FieldDeclarator)util.createFinalDeclarator(fdecl);
+            } else {
+              fdecl = (FieldDeclarator)util.createSourceDeclarator(fdecl);
+            }
           }
         } else {
           // When no initializer, the FieldDecl is unchanged.
@@ -229,6 +108,7 @@ aspect SignalValue {
         reDecls.addChild(fdecl);
       }
 
+      Modifiers ms = util.toRewrittenModifiers(getModifiers());
       return new FieldDecl(ms, reType, reDecls);
     }
   }
@@ -266,6 +146,88 @@ aspect SignalValue {
 
     public Access toRewrittenType(Access type) {
       return toRewrittenType(type, false);
+    }
+
+    public Expr searchAndRewrite(Declarator decl) {
+      Expr init = (Expr)decl.getInit().fullCopy();
+      init.setParent(decl.getInit().getParent());
+      init.rewriteSignalTypes(RewriteMode.SEARCH, this);
+      return init.rewriteSignalTypes(RewriteMode.GET, this);
+    }
+
+    public Declarator createCompositeDeclarator(Declarator decl) {
+      List lambdaArgs = new List();
+
+      // checking whether it is an "OR" signal
+      if (decl.getInit() instanceof AbstractDot) {
+        AbstractDot aDot = (AbstractDot)decl.getInit();
+        if (aDot.getRight() instanceof MethodAccess) {
+          MethodAccess maybeOr = (MethodAccess)aDot.getRight();
+          if (aDot.getLeft().isSignalType() && maybeOr.getID().equals("or")) {
+            maybeOr.addArg(new VarAccess("__x__"));
+          }
+        }
+      }
+
+      Expr rewritten = searchAndRewrite(decl);
+
+      lambdaArgs.add(getSourceVars().elementAt(0));
+      resetCounter();
+      int numSource = getSourceVars().size();
+      if (queryHasLast(decl)) numSource++;
+      int sourceCount = 0;
+      for (Access v : getSourceVars()) {
+        Expr mapper = (Expr)rewritten.fullCopy();
+        mapper.setParent(decl.getInit().getParent());
+        Access rec = (Access)v.fullCopy();
+        rec.setParent(decl.getInit().getParent());
+        List<Access> mapperArgs = new List<Access>();
+        mapperArgs.add(getSourceTypes().elementAt(sourceCount));
+        sourceCount++;
+        for (Access a : args) { mapperArgs.add(a); }
+        Expr mapperLambda =
+          new CastExpr(
+           new ParTypeAccess(new TypeAccess("io.reactivex.functions", "Function"), mapperArgs),
+           new LambdaExpr(new InferredLambdaParameters(new List().add(new InferredParameterDeclaration("__x__"))),
+                         numSource > 1 ?
+                         new ExprLambdaBody(mapper):
+                         new ExprLambdaBody(mapper.rewriteSignalTypes(RewriteMode.RENAME, this)))
+          );
+        lambdaArgs.add(rec.qualifiesAccess(new MethodAccess("getFlowable", new List())).qualifiesAccess(new ParMethodAccess("map", new List().add(mapperLambda), args)));
+        counterInc();
+      }
+
+      return (decl instanceof VariableDeclarator) ?
+               new VariableDeclarator(decl.getID(), decl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "CompositeSignal"), args), lambdaArgs, new Opt())))
+               : new FieldDeclarator(decl.getID(), decl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "CompositeSignal"), args), lambdaArgs, new Opt())));
+    }
+
+    public Declarator createFinalDeclarator(Declarator decl) {
+      List lambdaArgs = new List();
+      Expr init = (Expr)decl.getInit().fullCopy();
+      init.setParent(decl.getInit().getParent());
+      lambdaArgs.add(new CastExpr(new TypeAccess("signalj", "SignalInterface"), new LambdaExpr(new DeclaredLambdaParameters(new List<ParameterDeclaration>()), new ExprLambdaBody(init))));
+      return (decl instanceof VariableDeclarator) ?
+          new VariableDeclarator(decl.getID(), decl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "FinalSignal"), args), lambdaArgs, new Opt())))
+          : new FieldDeclarator(decl.getID(), decl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "FinalSignal"), args), lambdaArgs, new Opt())));
+    }
+
+    public Declarator createSourceDeclarator(Declarator decl) {
+      List lambdaArgs = new List();
+      lambdaArgs.add(decl.getInit());
+      return (decl instanceof VariableDeclarator) ?
+          new VariableDeclarator(decl.getID(), decl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "Signal"), args), lambdaArgs, new Opt())))
+          : new FieldDeclarator(decl.getID(), decl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "Signal"), args), lambdaArgs, new Opt())));
+    }
+
+    private boolean queryHasLast(Declarator decl) {
+      resetHasLast();
+      Expr last = (Expr)decl.getInit().fullCopy();
+      last.setParent(decl.getInit().getParent());
+      last.rewriteSignalTypes(RewriteMode.LAST, this);
+      boolean retval = hasLast();
+      resetHasLast();
+      return retval;
     }
 
     private TypeAccess convertPrimitiveType(PrimitiveTypeAccess pta) {
@@ -317,14 +279,14 @@ aspect SignalValue {
     public Vector<Access> getSourceVars() { return sourceVars; }
     public Vector<Access> getSourceTypes() { return sourceTypes; }
 
-    public void resetCounter() { counter = 0; }
-    public void counterInc() { counter++; }
+    private void resetCounter() { counter = 0; }
+    private void counterInc() { counter++; }
 
     public Access getCurrent() { return sourceVars.elementAt(counter); }
 
     public void setHasLast() { hasLast = true; }
-    public void resetHasLast() { hasLast = false; }
-    public boolean hasLast() { return hasLast; }
+    private void resetHasLast() { hasLast = false; }
+    private boolean hasLast() { return hasLast; }
   }
 
   public boolean Expr.isSourceSignalType() {

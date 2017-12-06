@@ -45,15 +45,6 @@ public class Signal<T> {
     protected Flowable<T> or = null;
     protected T sum = null;
     protected int count = 0;
-    //    protected Counter counter = null;
-
-    /*
-    protected class Counter {
-	private int value = 0;
-	public void inc(T val) { value++; }
-	public int getValue() { return value; }
-    }
-    */
 
     public Signal() {}
 
@@ -119,19 +110,6 @@ public class Signal<T> {
 
     public T value() { return processor.blockingFirst(); }
 
-    /*
-    public int count() {
-	if (counter == null) {
-	    counter = new Counter();
-	    processor.subscribe(counter::inc);
-	    return 0;
-	} else {
-	    return counter.getValue();
-	}
-	//	return processor.count().blockingGet().intValue();
-    }
-    */
-
     public int count() { return count; }
     
     public T or(T arg, T source) {
@@ -155,9 +133,6 @@ public class Signal<T> {
 		retval = f.apply(inner);
 	    } catch (Exception e) {
 		e1 = e;
-		System.out.println("DEBUG in fold: " + e.getClass().getName());
-		System.out.println("DEBUG in fold inner: " + inner);
-		//		e.printStackTrace();
 	    }
 	    return retval;
 	}
