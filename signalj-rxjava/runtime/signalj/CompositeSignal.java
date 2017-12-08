@@ -31,9 +31,7 @@
 package signalj;
 
 import java.util.Vector;
-import java.util.Iterator;
 import io.reactivex.functions.Consumer;
-
 import io.reactivex.Flowable;
 
 public class CompositeSignal<T> extends Signal<T> {
@@ -58,10 +56,6 @@ public class CompositeSignal<T> extends Signal<T> {
 	} else {
 	    flowable = source.getFlowable().merge(v);
 	}
-    }
-
-    public CompositeSignal(boolean orFlag, Signal<?> source, Flowable<T>... mappers) {
-	this(source, mappers);
     }
 
     public Flowable<T> getFlowable() {

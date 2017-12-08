@@ -157,6 +157,7 @@ aspect SignalValue {
 
     public Declarator createCompositeDeclarator(Declarator decl) {
       List lambdaArgs = new List();
+      boolean whenSignal = false;
 
       // checking whether it is an "OR" signal
       if (decl.getInit() instanceof AbstractDot) {
@@ -165,6 +166,10 @@ aspect SignalValue {
           MethodAccess maybeOr = (MethodAccess)aDot.getRight();
           if (aDot.getLeft().isSignalType() && maybeOr.getID().equals("or")) {
             maybeOr.addArg(new VarAccess("__x__"));
+          } else if (aDot.getLeft().isSignalType() && maybeOr.getID().equals("when")) {
+            whenSignal = true;
+            lambdaArgs.add(maybeOr.getArgs().getChildNoTransform(0));
+	    lambdaArgs.add(maybeOr.getArgs().getChildNoTransform(1));
           }
         }
       }
@@ -197,9 +202,10 @@ aspect SignalValue {
         counterInc();
       }
 
+      String signalName = whenSignal ? "WhenSignal" : "CompositeSignal";
       return (decl instanceof VariableDeclarator) ?
-               new VariableDeclarator(decl.getID(), decl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "CompositeSignal"), args), lambdaArgs, new Opt())))
-               : new FieldDeclarator(decl.getID(), decl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", "CompositeSignal"), args), lambdaArgs, new Opt())));
+               new VariableDeclarator(decl.getID(), decl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), args), lambdaArgs, new Opt())))
+               : new FieldDeclarator(decl.getID(), decl.getDimsList(), new Opt(new ClassInstanceExpr(new ParTypeAccess(new TypeAccess("signalj", signalName), args), lambdaArgs, new Opt())));
     }
 
     public Declarator createFinalDeclarator(Declarator decl) {

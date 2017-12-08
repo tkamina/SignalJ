@@ -30,12 +30,11 @@
 
 package signalj;
 
-import java.util.Vector;
-
 import io.reactivex.Flowable;
 import io.reactivex.processors.BehaviorProcessor;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Predicate;
 
 public class Signal<T> {
     protected T inner;
@@ -117,7 +116,9 @@ public class Signal<T> {
 	else return arg;
     }
 
-    public T when(boolean p, T def) {
+    public T when(Predicate<T> pred, T def) {
+	boolean p = false;
+	try { p = pred.test(value()); } catch (Exception e) { }
 	if (p) return value();
 	else return def;
     }
